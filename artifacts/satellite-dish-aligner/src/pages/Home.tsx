@@ -80,31 +80,35 @@ function calcSatelliteAngles(
   };
 }
 
-function getMapUrl(lat: number, lon: number): string {
-  const zoom = 19;
-  const size = "400x400";
-  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=${zoom}&size=${size}&maptype=satellite&key=`;
+const MAP_ZOOM = 18;
+
+function getTileInfo(lat: number, lon: number) {
+  const n = Math.pow(2, MAP_ZOOM);
+  const xPixel = ((lon + 180) / 360) * n * 256;
+  const latRad = (lat * Math.PI) / 180;
+  const yPixel =
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
+    n *
+    256;
+  const tileX = Math.floor(xPixel / 256);
+  const tileY = Math.floor(yPixel / 256);
+  const offsetX = xPixel - tileX * 256;
+  const offsetY = yPixel - tileY * 256;
+  return { tileX, tileY, offsetX, offsetY };
 }
 
-function getOpenStreetMapUrl(lat: number, lon: number): string {
-  const zoom = 19;
-  const tileX = Math.floor(((lon + 180) / 360) * Math.pow(2, zoom));
-  const latRad = (lat * Math.PI) / 180;
-  const tileY = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
-      Math.pow(2, zoom)
-  );
-  return `https://mt0.google.com/vt/lyrs=s&x=${tileX}&y=${tileY}&z=${zoom}`;
+function getSatTileUrl(tx: number, ty: number) {
+  return `https://mt0.google.com/vt/lyrs=s&x=${tx}&y=${ty}&z=${MAP_ZOOM}`;
 }
 
 function CompassDial({
   azimuth,
   satelliteName,
-  mapUrl,
+  coords,
 }: {
   azimuth: number;
   satelliteName: string;
-  mapUrl: string | null;
+  coords: { lat: number; lon: number } | null;
 }) {
   const size = 340;
   const cx = size / 2;
@@ -113,6 +117,21 @@ function CompassDial({
   const innerR = outerR - 30;
   const mapR = innerR - 8;
   const satIconR = outerR + 22;
+
+  const tileInfo = coords ? getTileInfo(coords.lat, coords.lon) : null;
+  const tiles = tileInfo
+    ? [-1, 0, 1].flatMap((dy) =>
+        [-1, 0, 1].map((dx) => {
+          const tx = tileInfo.tileX + dx;
+          const ty = tileInfo.tileY + dy;
+          return {
+            url: getSatTileUrl(tx, ty),
+            svgX: cx + dx * 256 - tileInfo.offsetX,
+            svgY: cy + dy * 256 - tileInfo.offsetY,
+          };
+        })
+      )
+    : [];
 
   const azRad = ((azimuth - 90) * Math.PI) / 180;
   const satX = cx + satIconR * Math.cos(azRad);
@@ -193,17 +212,19 @@ function CompassDial({
 
         <circle cx={cx} cy={cy} r={innerR} fill="#0a0f1e" stroke="#1e3a5f" strokeWidth="1" />
 
-        {mapUrl ? (
-          <image
-            href={mapUrl}
-            x={cx - mapR}
-            y={cy - mapR}
-            width={mapR * 2}
-            height={mapR * 2}
-            clipPath="url(#mapClip)"
-            preserveAspectRatio="xMidYMid slice"
-            style={{ opacity: 0.85 }}
-          />
+        {tiles.length > 0 ? (
+          <g clipPath="url(#mapClip)" style={{ opacity: 0.9 }}>
+            {tiles.map((tile, i) => (
+              <image
+                key={i}
+                href={tile.url}
+                x={tile.svgX}
+                y={tile.svgY}
+                width={256}
+                height={256}
+              />
+            ))}
+          </g>
         ) : (
           <>
             <circle cx={cx} cy={cy} r={mapR} fill="#0d1b2a" />
@@ -603,27 +624,36 @@ export default function Home() {
   const [coordInput, setCoordInput] = useState("15\xB040'01.5\"N 43\xB057'25.8\"E");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedSat, setSelectedSat] = useState(SATELLITES[0]);
+  const [satLonInput, setSatLonInput] = useState(String(SATELLITES[0].longitude));
   const [angles, setAngles] = useState({ azimuth: 0, elevation: 0, skew: 0 });
-  const [mapUrl, setMapUrl] = useState<string | null>(null);
   const [parseError, setParseError] = useState(false);
 
-  const applyCoords = useCallback(
-    (input: string) => {
-      const parsed = parseCoordinates(input);
-      if (parsed) {
-        setCoords(parsed);
-        setParseError(false);
+  const applyCoords = useCallback((input: string) => {
+    const parsed = parseCoordinates(input);
+    if (parsed) {
+      setCoords(parsed);
+      setParseError(false);
+    } else {
+      setParseError(true);
+      setCoords(null);
+    }
+  }, []);
 
-        const url = getOpenStreetMapUrl(parsed.lat, parsed.lon);
-        setMapUrl(url);
-      } else {
-        setParseError(true);
-        setCoords(null);
-        setMapUrl(null);
-      }
-    },
-    []
-  );
+  const handleSatLonChange = useCallback((val: string) => {
+    setSatLonInput(val);
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      setSelectedSat({ name: `${num >= 0 ? num + "E" : Math.abs(num) + "W"}`, longitude: num });
+    }
+  }, []);
+
+  const handleSatSelect = useCallback((name: string) => {
+    const sat = SATELLITES.find((s) => s.name === name);
+    if (sat) {
+      setSelectedSat(sat);
+      setSatLonInput(String(sat.longitude));
+    }
+  }, []);
 
   useEffect(() => {
     applyCoords(coordInput);
@@ -701,24 +731,35 @@ export default function Home() {
             )}
           </div>
 
-          <div className="min-w-[200px]">
-            <label className="block text-xs text-blue-400 mb-1.5 font-semibold tracking-wider">
+          <div className="min-w-[220px] flex flex-col gap-1.5">
+            <label className="block text-xs text-blue-400 font-semibold tracking-wider">
               القمر الصناعي
             </label>
             <select
-              value={selectedSat.name}
-              onChange={(e) => {
-                const sat = SATELLITES.find((s) => s.name === e.target.value);
-                if (sat) setSelectedSat(sat);
-              }}
-              className="w-full rounded-lg px-3 py-2.5 text-sm bg-slate-800/80 border border-blue-900/40 text-white outline-none"
+              value={SATELLITES.find(s => s.longitude === selectedSat.longitude)?.name ?? ""}
+              onChange={(e) => handleSatSelect(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm bg-slate-800/80 border border-blue-900/40 text-white outline-none"
             >
+              <option value="">— اختر أو أدخل يدويًا —</option>
               {SATELLITES.map((s) => (
                 <option key={s.name} value={s.name}>
                   {s.name}
                 </option>
               ))}
             </select>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 whitespace-nowrap">خط الطول:</span>
+              <input
+                type="number"
+                step="0.1"
+                value={satLonInput}
+                onChange={(e) => handleSatLonChange(e.target.value)}
+                placeholder="مثال: 26 أو -7"
+                className="flex-1 rounded-lg px-3 py-2 text-sm font-mono bg-slate-800/80 border border-blue-900/40 text-white placeholder-slate-500 outline-none"
+                dir="ltr"
+              />
+              <span className="text-xs text-slate-400">°</span>
+            </div>
           </div>
 
           <button
@@ -746,7 +787,7 @@ export default function Home() {
               <CompassDial
                 azimuth={angles.azimuth}
                 satelliteName={selectedSat.name}
-                mapUrl={mapUrl}
+                coords={coords}
               />
               <div className="flex gap-3 mt-4 flex-wrap justify-center">
                 {[
