@@ -794,27 +794,40 @@ export default function Home() {
                 satelliteName={selectedSat.name}
                 coords={coords}
               />
-              <div className="flex gap-3 mt-4 flex-wrap justify-center">
+              <svg width="340" height="68" viewBox="0 0 340 68" style={{ marginTop: 12 }} direction="ltr">
+                <defs>
+                  <filter id="badgeGlow">
+                    <feGaussianBlur stdDeviation="2" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                </defs>
                 {[
-                  { label: "Azimuth", value: `${angles.azimuth}°`, color: "#facc15" },
-                  { label: "Elevation", value: `${angles.elevation}°`, color: "#60a5fa" },
-                  { label: "LNB Skew", value: `${angles.skew}°`, color: "#a78bfa" },
+                  { label: "الاتجاه", sub: "Azimuth", value: `${angles.azimuth}°`, color: "#facc15", x: 0 },
+                  { label: "الارتفاع", sub: "Elevation", value: `${angles.elevation}°`, color: "#60a5fa", x: 110 },
+                  { label: "انحراف LNB", sub: "Skew", value: `${angles.skew}°`, color: "#a78bfa", x: 220 },
                 ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="rounded-xl px-4 py-3 text-center min-w-[90px]"
-                    style={{
-                      background: "rgba(15, 30, 55, 0.8)",
-                      border: `1px solid ${item.color}30`,
-                    }}
-                  >
-                    <div className="text-xs text-slate-400 mb-1">{item.label}</div>
-                    <div className="text-xl font-bold" style={{ color: item.color }}>
+                  <g key={item.label} transform={`translate(${item.x}, 0)`}>
+                    <rect x="2" y="2" width="106" height="64" rx="10" ry="10"
+                      fill="#0a1628" stroke={item.color} strokeWidth="1.2" strokeOpacity="0.35" />
+                    <rect x="2" y="2" width="106" height="64" rx="10" ry="10"
+                      fill="none" stroke={item.color} strokeWidth="0.4" strokeOpacity="0.15" />
+                    <rect x="2" y="2" width="4" height="64" rx="2" ry="2" fill={item.color} opacity="0.7" />
+                    <text x="58" y="21" textAnchor="middle" fill={item.color}
+                      fontSize="10" fontWeight="700" fontFamily="'Inter', sans-serif" opacity="0.95">
+                      {item.label}
+                    </text>
+                    <text x="58" y="32" textAnchor="middle" fill="#475569"
+                      fontSize="7.5" fontFamily="monospace" letterSpacing="0.5">
+                      {item.sub}
+                    </text>
+                    <line x1="14" y1="37" x2="96" y2="37" stroke={item.color} strokeWidth="0.5" strokeOpacity="0.25" />
+                    <text x="58" y="56" textAnchor="middle" fill={item.color}
+                      fontSize="20" fontWeight="800" fontFamily="monospace" filter="url(#badgeGlow)">
                       {item.value}
-                    </div>
-                  </div>
+                    </text>
+                  </g>
                 ))}
-              </div>
+              </svg>
             </div>
 
             <div
