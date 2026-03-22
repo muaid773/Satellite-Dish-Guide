@@ -1,0 +1,151 @@
+اريد كود في ملف html يكون برنامج يساعدني على 
+ظبط طبق التلفزيون 
+حيث اعطيه نقطه احداثيات والي تكون خوط الطول والعرض ناخذها من جوجل ماب ثم في قسم الصفحه العلوي ستضهر صوره بعد ادخال الاحدثيات هذه الصوره تكون داىريه كانها ساعه وحولها مثل الساعة س هي خطوط تبين لنا الزاويه اافقيه اي الاتجاه 
+ثم ندخل للمعطيات ينات القمر مثل نايل سات -7 
+وتضهر رمز قمر svg حول الساعة من خارج يكون مكانه باتجاه القمر الفعلي لو كان اتجهاهه هو شمال 
+ستكون زاويته 90 لو غرب  180 وهكذا وايضا يسضهر خط خفيف فوق الصوره من مركز الاداىره او مركز تاحداث الش الى نقطه في محيط الداىره وهي نقطه زاويه اتجاه القمر 
+وتحت الساعه التفاعليه ستضهر شكل مسطره يبين الزاوي العموديه لطبق اي اعلى او اسفل لو كان على الافق مباشره 0 درجه لو كان القمر فوقي راسا سيكون 90 درجه وكمان بينات ميل العدسه 
+وحاول ان تكون المعطيات تضهر تفاعليه رمزيه كما صورت لك ووصفت 
+طبعا لضمان الاستقرار لن نعمل بث مباشر للخريطه فقط تؤخذ صوره مقربه بعيث تكفي ليكون نصف قطرها هو 
+10 متر او 15 متر  او 20 
+عل الخريطه  وتكون ثابته  كصوره لاتتغير الا اذا غير الاحداثيه وتتغير عبر اخها من جوجل ولصقها في مربع ادخال بهذه الصيغة
+15°40'01.5"N 43°57'25.8"E
+وهكذا عي الفكره بنما في الاسفل ستضهر مجسم الصحن طبق ويكون متجه بزاويه وتكت الزاويه وتعمل خطوط ومان اتجاهه وتخليه مثل مخطط رسم
+2d يرسم حسب الاعداث والقمر يوضع للمستخدم القيم كانها سمه ريضاضيات بي القمر وسط 
+مثلبا متجهه للغرب سيكون هكاذ 
+<___\
+بينما الخط الماى يقصد بها الزاويع فوق تحت 
+ابداء البناء
+"{
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محدد اتجاه الأقمار الصناعية</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        .input-group { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: #eef2f3; padding: 15px; border-radius: 8px; }
+        .input-group div { flex: 1; min-width: 200px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        button:hover { background-color: #219150; }
+        #map { height: 400px; width: 100%; margin-top: 20px; border-radius: 8px; border: 2px solid #ddd; }
+        .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; }
+        .result-card { background: #34495e; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .result-card span { display: block; font-size: 20px; font-weight: bold; color: #f1c40f; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📡 محدد اتجاه القمر الصناعي</h2>
+    
+    <div class="input-group">
+        <div>
+            <label>عرض موقعك (Lat):</label>
+            <input type="number" id="userLat" value="24.7136" step="any">
+        </div>
+        <div>
+            <label>طول موقعك (Lon):</label>
+            <input type="number" id="userLon" value="46.6753" step="any">
+        </div>
+        <div>
+            <label>موقع القمر (خط الطول):</label>
+            <input type="number" id="satLon" value="26.0" step="any" placeholder="مثلاً: 26.0 لـ عرب سات">
+        </div>
+    </div>
+
+    <button onclick="calculateSatelliteDirection()">حساب ورسم المسار</button>
+
+    <div class="results">
+        <div class="result-card">السمت (Azimuth)<span id="azimuth">-</span></div>
+        <div class="result-card">الارتفاع (Elevation)<span id="elevation">-</span></div>
+        <div class="result-card">زاوية العدسة (Skew)<span id="skew">-</span></div>
+    </div>
+
+    <div id="map"></div>
+</div>
+
+<script src="/mao.js"></script>
+<script>
+    let map = L.map('map').setView([24.7136, 46.6753], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marker, line, circle;
+
+    function calculateSatelliteDirection() {
+        const lat = parseFloat(document.getElementById('userLat').value);
+        const lon = parseFloat(document.getElementById('userLon').value);
+        const sLon = parseFloat(document.getElementById('satLon').value);
+
+        if (isNaN(lat) || isNaN(lon) || isNaN(sLon)) {
+            alert("يرجى إدخال إحداثيات صحيحة");
+            return;
+        }
+
+        // تحويل الدرجات إلى راديان
+        const rLat = lat * Math.PI / 180;
+        const diffLon = (sLon - lon) * Math.PI / 180;
+
+        // 1. حساب السمت (Azimuth)
+        let azimuth = 180 + (Math.atan2(Math.sin(diffLon), Math.tan(rLat)) * 180 / Math.PI);
+        azimuth = azimuth % 360;
+
+        // 2. حساب الارتفاع (Elevation)
+        const R = 6378.137; // نصف قطر الأرض
+        const H = 35786 + R; // ارتفاع المدار الثابت + نصف القطر
+        const cosG = Math.cos(rLat) * Math.cos(diffLon);
+        let elevation = Math.atan2((cosG - (R / H)), Math.sqrt(1 - cosG * cosG)) * 180 / Math.PI;
+
+        // 3. حساب ميل العدسة (Skew)
+        let skew = Math.atan2(Math.sin(diffLon), Math.tan(rLat)) * 180 / Math.PI;
+
+        // تحديث الواجهة
+        document.getElementById('azimuth').innerText = azimuth.toFixed(2) + "°";
+        document.getElementById('elevation').innerText = elevation.toFixed(2) + "°";
+        document.getElementById('skew').innerText = skew.toFixed(2) + "°";
+
+        // تحديث الخريطة
+        updateMap(lat, lon, azimuth);
+    }
+
+    function updateMap(lat, lon, az) {
+        if (marker) map.removeLayer(marker);
+        if (line) map.removeLayer(line);
+        if (circle) map.removeLayer(circle);
+
+        const userPos = [lat, lon];
+        map.setView(userPos, 13);
+
+        marker = L.marker(userPos).addTo(map).bindPopup("موقعك").openPopup();
+
+        // رسم دائرة تمثل المحيط
+        circle = L.circle(userPos, {
+            radius: 500,
+            color: 'blue',
+            fillOpacity: 0.1
+        }).addTo(map);
+
+        // حساب نقطة نهاية الخط باتجاه القمر (طول الخط 1 كم للعرض البصري)
+        const distance = 0.01; // مسافة تقريبية للرسم
+        const endLat = lat + (distance * Math.cos((90 - az) * Math.PI / 180));
+        const endLon = lon + (distance * Math.sin((90 - az) * Math.PI / 180));
+
+        line = L.polyline([userPos, [endLat, endLon]], {
+            color: 'red',
+            weight: 5,
+            opacity: 0.7
+        }).addTo(map);
+    }
+</script>
+
+</body>
+</html>
+}
