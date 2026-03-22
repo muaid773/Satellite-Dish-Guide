@@ -66,9 +66,14 @@ function calcSatelliteAngles(
   const z = Math.sin(lat_r);
 
   const elevation = toDeg(Math.atan(x / Math.sqrt(y * y + z * z)));
-  const azimuth_from_south = toDeg(Math.atan2(y, -z));
-  let azimuth = azimuth_from_south + 180;
-  if (azimuth > 360) azimuth -= 360;
+
+  // Azimuth from true North (clockwise): use ENU east/north components
+  // E = sin(lonDiff), N = -sin(lat)*cos(lonDiff)
+  const azRad = Math.atan2(
+    Math.sin(lonDiff),
+    -Math.sin(lat_r) * Math.cos(lonDiff)
+  );
+  let azimuth = toDeg(azRad);
   if (azimuth < 0) azimuth += 360;
 
   const skew = toDeg(Math.atan2(Math.sin(lonDiff), Math.tan(lat_r)));
