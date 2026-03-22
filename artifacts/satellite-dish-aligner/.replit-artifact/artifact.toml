@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "أداة ضبط طبق الأقمار الصناعية"
+version = "1.0.0"
+id = "artifacts/satellite-dish-aligner"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25450
+
+[services.development]
+run = "pnpm --filter @workspace/satellite-dish-aligner run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/satellite-dish-aligner", "run", "build" ]
+publicDir = "artifacts/satellite-dish-aligner/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25450"
+BASE_PATH = "/"
