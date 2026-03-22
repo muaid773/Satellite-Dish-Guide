@@ -87,14 +87,14 @@ function getMapUrl(lat: number, lon: number): string {
 }
 
 function getOpenStreetMapUrl(lat: number, lon: number): string {
-  const zoom = 18;
+  const zoom = 19;
   const tileX = Math.floor(((lon + 180) / 360) * Math.pow(2, zoom));
   const latRad = (lat * Math.PI) / 180;
   const tileY = Math.floor(
     ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
       Math.pow(2, zoom)
   );
-  return `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+  return `https://mt0.google.com/vt/lyrs=s&x=${tileX}&y=${tileY}&z=${zoom}`;
 }
 
 function CompassDial({
