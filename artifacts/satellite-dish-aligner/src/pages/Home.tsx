@@ -748,7 +748,6 @@ export default function Home() {
                 satelliteName={selectedSat.name}
                 mapUrl={mapUrl}
               />
-
               <div className="flex gap-3 mt-4 flex-wrap justify-center">
                 {[
                   { label: "Azimuth", value: `${angles.azimuth}°`, color: "#facc15" },
@@ -772,58 +771,15 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 flex-1 min-w-[300px]">
-              <div
-                className="rounded-2xl border border-blue-900/40 p-5"
-                style={{ background: "rgba(10, 22, 40, 0.7)", backdropFilter: "blur(16px)" }}
-              >
-                <ElevationBar elevation={angles.elevation} />
-              </div>
-
-              <div
-                className="rounded-2xl border border-blue-900/40 p-5"
-                style={{ background: "rgba(10, 22, 40, 0.7)", backdropFilter: "blur(16px)" }}
-              >
-                <DishDiagram
-                  azimuth={angles.azimuth}
-                  elevation={angles.elevation}
-                  skew={angles.skew}
-                />
-              </div>
-
-              <div
-                className="rounded-2xl border border-blue-900/40 p-5"
-                style={{ background: "rgba(10, 22, 40, 0.7)", backdropFilter: "blur(16px)" }}
-              >
-                <div className="text-xs text-blue-400 mb-3 font-semibold tracking-wider uppercase">
-                  تعليمات الضبط
-                </div>
-                <div className="space-y-2 text-sm text-slate-300">
-                  <div className="flex items-start gap-2">
-                    <span className="text-yellow-400 mt-0.5">①</span>
-                    <span>
-                      وجّه الطبق نحو{" "}
-                      <strong className="text-yellow-300">{angles.azimuth}°</strong> من الشمال
-                      (Azimuth)
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-blue-400 mt-0.5">②</span>
-                    <span>
-                      ارفع الطبق بزاوية{" "}
-                      <strong className="text-blue-300">{angles.elevation}°</strong> فوق الأفق
-                      (Elevation)
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-purple-400 mt-0.5">③</span>
-                    <span>
-                      أدر رأس الاستقبال (LNB) بزاوية{" "}
-                      <strong className="text-purple-300">{angles.skew}°</strong> (Skew)
-                    </span>
-                  </div>
-                </div>
-              </div>
+            <div
+              className="rounded-2xl border border-blue-900/40 p-5 flex-1 min-w-[300px] flex items-center justify-center"
+              style={{ background: "rgba(10, 22, 40, 0.7)", backdropFilter: "blur(16px)" }}
+            >
+              <DishDiagram
+                azimuth={angles.azimuth}
+                elevation={angles.elevation}
+                skew={angles.skew}
+              />
             </div>
           </div>
         )}
