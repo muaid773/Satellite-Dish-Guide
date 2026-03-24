@@ -594,64 +594,67 @@ function DishDiagram({
         {/*   LOCAL SPACE: dish faces UP, vertex at (0,0), aperture at y=-dishD */}
         <g transform={`translate(${poleX},${poleTopY}) rotate(${rotateDeg})`}>
 
-          {/* Mounting hub at pivot (0,0) */}
-          <rect x={-9} y={-4} width={18} height={16} rx={4}
-            fill="url(#armGr)" stroke="#1e3a5f" strokeWidth="1" />
-          <circle cx={0} cy={6} r={5} fill="#060e1a" stroke="#3b82f6" strokeWidth="1.2" />
-          <circle cx={0} cy={6} r={2.2} fill="#1d4ed8" />
+          {/*
+            ── CORRECT BEZIER MATH ──
+            Vertex at (0,0), aperture at y=-dishD.
+            For the curve to pass through vertex (0,0) at t=0.5:
+              control point = (0, +dishD)   ← below vertex in local space
+            Path: M -dishW,-dishD  Q 0,+dishD  dishW,-dishD
 
-          {/* ── DISH BODY: parabola M -dishW,-dishD Q 0,0 dishW,-dishD ── */}
-          {/* Shadow for depth */}
+            Inner arcs at scale t (x ∈ [-dishW·t, +dishW·t]):
+              endpoints on parabola: y = -dishD·t²
+              control: (0, +dishD·t²)
+          */}
+
+          {/* Dish surface fill */}
           <path
-            d={`M ${-dishW + 3},${-dishD + 3} Q 3,3 ${dishW + 3},${-dishD + 3} Z`}
-            fill="#020810" opacity="0.55"
+            d={`M ${-dishW},${-dishD} Q 0,${dishD} ${dishW},${-dishD} Z`}
+            fill="#06101e" opacity="0.95"
           />
-          {/* Fill */}
-          <path
-            d={`M ${-dishW},${-dishD} Q 0,0 ${dishW},${-dishD} Z`}
-            fill="url(#dshFill)"
-          />
-          {/* Inner depth arcs (parabola subdivisions) */}
-          {[0.75, 0.5, 0.27].map((t, i) => (
-            <path key={i}
-              d={`M ${-dishW * t},${-dishD * t * t} Q 0,0 ${dishW * t},${-dishD * t * t}`}
-              fill="none" stroke="#1e3a5f" strokeWidth="0.9" opacity={0.55 + i * 0.1}
+
+          {/* Inner reference arcs (correctly computed) */}
+          {[0.75, 0.48].map((t) => (
+            <path key={t}
+              d={`M ${-dishW * t},${-dishD * t * t} Q 0,${dishD * t * t} ${dishW * t},${-dishD * t * t}`}
+              fill="none" stroke="#1e3a5f" strokeWidth="1" opacity="0.75"
             />
           ))}
-          {/* Main rim arc */}
-          <path
-            d={`M ${-dishW},${-dishD} Q 0,0 ${dishW},${-dishD}`}
-            fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round"
-          />
-          <path
-            d={`M ${-dishW},${-dishD} Q 0,0 ${dishW},${-dishD}`}
-            fill="none" stroke="#93c5fd" strokeWidth="0.8" strokeLinecap="round" opacity="0.3"
-          />
-          {/* Aperture rim (opening edge) */}
-          <line x1={-dishW} y1={-dishD} x2={dishW} y2={-dishD}
-            stroke="#2563eb" strokeWidth="3" strokeLinecap="round" />
-          <line x1={-dishW} y1={-dishD} x2={dishW} y2={-dishD}
-            stroke="#60a5fa" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
 
-          {/* Center hub on dish surface */}
-          <circle cx={0} cy={0} r={7} fill="#0a1628" stroke="#3b82f6" strokeWidth="1.5" />
-          <circle cx={0} cy={0} r={3} fill="#1e40af" />
+          {/* Center symmetry axis */}
+          <line x1={0} y1={0} x2={0} y2={-dishD}
+            stroke="#1e3a5f" strokeWidth="0.8" strokeDasharray="3 3" opacity="0.6" />
 
-          {/* ── LNB ARM ── extends from vertex (0,0) toward (0,-lnbLen) ── */}
-          {/* Brace from aperture corners to LNB */}
-          <line x1={-dishW * 0.62} y1={-dishD} x2={0} y2={-lnbLen}
-            stroke="#1e3a5f" strokeWidth="2" strokeLinecap="round" opacity="0.9" />
-          <line x1={dishW * 0.62} y1={-dishD} x2={0} y2={-lnbLen}
-            stroke="#1e3a5f" strokeWidth="2" strokeLinecap="round" opacity="0.9" />
-          {/* Main arm rod */}
+          {/* Main parabolic rim */}
+          <path
+            d={`M ${-dishW},${-dishD} Q 0,${dishD} ${dishW},${-dishD}`}
+            fill="none" stroke="#2563eb" strokeWidth="3.5" strokeLinecap="round"
+          />
+
+          {/* Aperture opening edge */}
+          <line x1={-dishW} y1={-dishD} x2={dishW} y2={-dishD}
+            stroke="#2563eb" strokeWidth="3.5" strokeLinecap="round" />
+
+          {/* Vertex hub */}
+          <circle cx={0} cy={0} r={6} fill="#0a1628" stroke="#3b82f6" strokeWidth="2" />
+          <circle cx={0} cy={0} r={2.5} fill="#2563eb" />
+
+          {/* LNB side braces: aperture rim corners → LNB tip */}
+          <line x1={-dishW * 0.58} y1={-dishD} x2={0} y2={-lnbLen}
+            stroke="#334155" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1={dishW * 0.58} y1={-dishD} x2={0} y2={-lnbLen}
+            stroke="#334155" strokeWidth="1.5" strokeLinecap="round" />
+
+          {/* Main arm rod: vertex → LNB */}
           <line x1={0} y1={0} x2={0} y2={-lnbLen}
-            stroke="url(#armGr)" strokeWidth="4.5" strokeLinecap="round" />
-          {/* LNB housing */}
-          <rect x={-9} y={-lnbLen - 10} width={18} height={18} rx={4}
-            fill="#1e293b" stroke="#60a5fa" strokeWidth="1.8" />
-          <rect x={-5} y={-lnbLen - 7} width={10} height={12} rx={2}
-            fill="#060e1a" stroke="#3b82f6" strokeWidth="1" />
-          <circle cx={0} cy={-lnbLen - 1} r={3} fill="#1d4ed8" opacity="0.9" />
+            stroke="#475569" strokeWidth="3.5" strokeLinecap="round" />
+
+          {/* LNB head */}
+          <rect x={-8} y={-lnbLen - 8} width={16} height={14} rx={3}
+            fill="#0f172a" stroke="#60a5fa" strokeWidth="2" />
+          <rect x={-4} y={-lnbLen - 5} width={8} height={8} rx={1.5}
+            fill="#1d4ed8" />
+          <text x={14} y={-lnbLen} dominantBaseline="central"
+            fill="#a78bfa" fontSize="9" fontWeight="700">LNB</text>
         </g>
 
         {/* ── ELEVATION ARC (drawn in world space, not inside rotated group) ── */}
