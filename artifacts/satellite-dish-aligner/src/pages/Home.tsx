@@ -445,44 +445,46 @@ function DishDiagram({
   elevation: number;
   skew: number;
 }) {
-  const w = 420;
-  const h = 310;
+  // ── SVG canvas ─────────────────────────────────────────────────────────────
+  const w = 440;
+  const h = 340;
+
+  // ── Direction ───────────────────────────────────────────────────────────────
   const azNorm = ((azimuth % 360) + 360) % 360;
   const isWest = azNorm > 180;
 
-  // ── CORRECT ROTATION MATH ──────────────────────────────────────────────────
-  // Dish drawn in LOCAL SPACE facing UP (aperture at y=-dishD, vertex at y=0).
-  // Rotation formula (SVG: positive = clockwise):
-  //   East satellite → rotate +(90-elevation): at El=0 → +90° = faces right ✓
-  //   West satellite → rotate -(90-elevation): at El=0 → -90° = faces left  ✓
-  //   Both at El=90°: rotate 0° = faces straight up ✓
+  // Rotation of dish around poleTopY pivot (SVG: +ve = clockwise):
+  //   East → +(90-El): El=0 → +90° (faces right), El=90 → 0° (faces up)
+  //   West → -(90-El): El=0 → -90° (faces left), El=90 → 0° (faces up)
   const rotateDeg = (90 - elevation) * (isWest ? -1 : 1);
   const rotateRad = (rotateDeg * Math.PI) / 180;
 
-  // Dish dimensions (local space)
-  const dishW = 72;    // half-width of aperture opening
-  const dishD = 38;    // depth from aperture plane (y=-dishD) to vertex (y=0)
-  const armLen = 56;   // LNB arm: from vertex to LNB tip (toward aperture & beyond)
-  const lnbLen = dishD + armLen; // total reach from vertex to LNB
+  // ── Dish geometry (local space, dish faces UP) ─────────────────────────────
+  const dishW = 60;   // half-width of aperture
+  const dishD = 30;   // depth (vertex at 0, aperture at y=-dishD)
+  const armLen = 44;  // LNB arm from vertex to LNB tip
+  const lnbLen = dishD + armLen; // 74 — total reach from pivot to LNB
 
-  // Pole and mount
-  const poleX = w / 2;
-  const groundY = h - 30;
-  const poleTopY = groundY - 62;
+  // ── Layout ─────────────────────────────────────────────────────────────────
+  const poleX   = w / 2;    // 220 — horizontal center
+  const groundY = h - 28;   // 312 — ground line
+  const pivotY  = 230;      // pivot = pole top = CENTER of the protractor arc
 
-  // ── LNB WORLD POSITION ────────────────────────────────────────────────────
-  // Local LNB point is (0, -lnbLen).
-  // After SVG rotate(rotateDeg) applied at (poleX, poleTopY):
-  //   world_x = poleX + (-(-lnbLen)) * sin(rotateRad) = poleX + lnbLen*sin
-  //   world_y = poleTopY + (-lnbLen) * cos(rotateRad) = poleTopY - lnbLen*cos
+  // ── Protractor (semicircle) ─────────────────────────────────────────────────
+  const arcR = 148; // radius of the 180° semicircle
+
+  // Satellite sticker: positioned on the arc at the dish's pointing angle
+  const satArcX = poleX + arcR * Math.sin(rotateRad);
+  const satArcY = pivotY - arcR * Math.cos(rotateRad);
+
+  // LNB world position (focal point — green beam starts here)
   const lnbWorldX = poleX + lnbLen * Math.sin(rotateRad);
-  const lnbWorldY = poleTopY - lnbLen * Math.cos(rotateRad);
+  const lnbWorldY = pivotY  - lnbLen * Math.cos(rotateRad);
 
-  // Satellite icon: on the same side the dish faces
-  const satX = isWest ? 76 : w - 76;
-  const satY = 46;
-  const beamStartX = satX + (isWest ? 36 : -36);
-  const beamStartY = satY + 4;
+  // ── Tick marks on the semicircle ────────────────────────────────────────────
+  // Ticks span from -90° (left horizontal) to +90° (right horizontal)
+  // Each tick angle `td` from vertical corresponds to elevation = 90-|td|
+  const ticks = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90];
 
   return (
     <div
@@ -492,35 +494,19 @@ function DishDiagram({
       <div className="text-xs text-blue-400 mb-1 font-semibold tracking-wider uppercase text-center">
         Dish Diagram — مجسم الطبق
       </div>
-      <svg
-        width="100%"
-        viewBox={`0 0 ${w} ${h}`}
-        direction="ltr"
-        style={{ display: "block" }}
-      >
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} direction="ltr" style={{ display: "block" }}>
         <defs>
-          <linearGradient id="dshFill" x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%"   stopColor="#0d1b2e" />
-            <stop offset="40%"  stopColor="#1e3a5f" />
-            <stop offset="70%"  stopColor="#2563eb" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#0d1b2e" />
-          </linearGradient>
-          <linearGradient id="poleGr" x1="0%" x2="100%" y1="0%" y2="0%">
+          <linearGradient id="pGr" x1="0%" x2="100%" y1="0%" y2="0%">
             <stop offset="0%"   stopColor="#060e1a" />
-            <stop offset="40%"  stopColor="#1e3a5f" />
-            <stop offset="60%"  stopColor="#2d5080" />
+            <stop offset="45%"  stopColor="#1e3a5f" />
+            <stop offset="55%"  stopColor="#2d5080" />
             <stop offset="100%" stopColor="#060e1a" />
           </linearGradient>
-          <linearGradient id="armGr" x1="0%" x2="100%" y1="0%" y2="0%">
-            <stop offset="0%"   stopColor="#0d1b2e" />
-            <stop offset="50%"  stopColor="#475569" />
-            <stop offset="100%" stopColor="#0d1b2e" />
-          </linearGradient>
-          <filter id="bFx" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="3" result="b" />
+          <filter id="gBm" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="3.5" result="b" />
             <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
-          <filter id="sFx" x="-40%" y="-40%" width="180%" height="180%">
+          <filter id="gSat" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="2" result="b" />
             <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
@@ -529,176 +515,153 @@ function DishDiagram({
         {/* ── GROUND ── */}
         <rect x={0} y={groundY} width={w} height={h - groundY} fill="#040b16" />
         <line x1={0} y1={groundY} x2={w} y2={groundY} stroke="#1e3a5f" strokeWidth="2" />
-        {Array.from({ length: 22 }, (_, i) => (
-          <line key={i}
-            x1={i * 20} y1={groundY}
-            x2={i * 20 - 10} y2={groundY + 9}
-            stroke="#0d1b2e" strokeWidth="1.5" />
+        {Array.from({ length: 24 }, (_, i) => (
+          <line key={i} x1={i*20} y1={groundY} x2={i*20-10} y2={groundY+8}
+            stroke="#0a1628" strokeWidth="1.5" />
         ))}
-        <text x={w / 2} y={h - 7} textAnchor="middle" fill="#1e3a5f" fontSize="8.5">
-          ── الأرض ──
-        </text>
-
-        {/* ── SATELLITE (in the sky on the dish-facing side) ── */}
-        <g transform={`translate(${satX},${satY})`} filter="url(#sFx)">
-          <ellipse cx={0} cy={0} rx={58} ry={20} fill="#1d4ed8" opacity="0.05" />
-          <rect x={-16} y={-11} width={32} height={22} rx={4}
-            fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-          <rect x={-15} y={-10} width={30} height={7} rx={2} fill="#283852" />
-          <rect x={-23} y={-3} width={7} height={5} rx={1} fill="#1e293b" />
-          <rect x={16} y={-3} width={7} height={5} rx={1} fill="#1e293b" />
-          <rect x={-57} y={-8} width={34} height={16} rx={3}
-            fill="#1e40af" stroke="#3b82f6" strokeWidth="1.2" />
-          {[-51, -44, -37, -31].map(px => (
-            <line key={px} x1={px} y1={-8} x2={px} y2={8}
-              stroke="#93c5fd" strokeWidth="0.7" opacity="0.8" />
-          ))}
-          <rect x={23} y={-8} width={34} height={16} rx={3}
-            fill="#1e40af" stroke="#3b82f6" strokeWidth="1.2" />
-          {[27, 34, 41, 47].map(px => (
-            <line key={px} x1={px} y1={-8} x2={px} y2={8}
-              stroke="#93c5fd" strokeWidth="0.7" opacity="0.8" />
-          ))}
-          <path d="M -6,-11 Q 0,-23 6,-11" fill="none" stroke="#94a3b8" strokeWidth="1.8" strokeLinecap="round" />
-          <line x1={0} y1={-23} x2={0} y2={-11} stroke="#94a3b8" strokeWidth="1.2" />
-          <circle cx={0} cy={-23} r={2} fill="#60a5fa" opacity="0.85" />
-          <circle cx={-4} cy={1} r={5.5} fill="#0f172a" stroke="#2563eb" strokeWidth="1.2" />
-          <circle cx={-4} cy={1} r={3} fill="#1d4ed8" opacity="0.9" />
-          <circle cx={10} cy={-3} r={2.5} fill="#22c55e" />
-          <circle cx={10} cy={-3} r={1.2} fill="#bbf7d0" opacity="0.9" />
-        </g>
-
-        {/* ── BEAM from satellite → LNB ── */}
-        <line x1={beamStartX} y1={beamStartY} x2={lnbWorldX} y2={lnbWorldY}
-          stroke="#22c55e" strokeWidth="9" opacity="0.1" filter="url(#bFx)" />
-        <line x1={beamStartX} y1={beamStartY} x2={lnbWorldX} y2={lnbWorldY}
-          stroke="#22c55e" strokeWidth="1.8" opacity="0.92" />
-        <line x1={beamStartX} y1={beamStartY} x2={lnbWorldX} y2={lnbWorldY}
-          stroke="#86efac" strokeWidth="1" strokeDasharray="11 10" opacity="0.55" />
-        <circle cx={lnbWorldX} cy={lnbWorldY} r={5} fill="#22c55e" opacity="0.25" />
-        <circle cx={lnbWorldX} cy={lnbWorldY} r={3} fill="#22c55e" opacity="0.8" />
-        <circle cx={lnbWorldX} cy={lnbWorldY} r={1.5} fill="#bbf7d0" />
 
         {/* ── POLE ── */}
-        <rect x={poleX - 6} y={poleTopY + 12} width={12} height={groundY - poleTopY - 12}
-          rx={4} fill="url(#poleGr)" />
-        <rect x={poleX - 22} y={groundY - 7} width={44} height={11} rx={3} fill="url(#poleGr)" />
-        <rect x={poleX - 26} y={groundY + 1} width={52} height={7} rx={3}
-          fill="#050c1a" stroke="#1e3a5f" strokeWidth="1" />
-        {[-14, -5, 5, 14].map(bx => (
-          <circle key={bx} cx={poleX + bx} cy={groundY + 4} r={2.2}
+        <rect x={poleX-5} y={pivotY+10} width={10} height={groundY-pivotY-10}
+          rx={3} fill="url(#pGr)" />
+        <rect x={poleX-20} y={groundY-6} width={40} height={10} rx={3} fill="url(#pGr)" />
+        <rect x={poleX-24} y={groundY+1} width={48} height={6} rx={3}
+          fill="#040b16" stroke="#1e3a5f" strokeWidth="1" />
+        {[-13,-4,4,13].map(bx => (
+          <circle key={bx} cx={poleX+bx} cy={groundY+4} r={2}
             fill="#1e3a5f" stroke="#334155" strokeWidth="0.8" />
         ))}
 
-        {/* ── DISH ASSEMBLY — rotated around pole-top pivot ── */}
-        {/*   LOCAL SPACE: dish faces UP, vertex at (0,0), aperture at y=-dishD */}
-        <g transform={`translate(${poleX},${poleTopY}) rotate(${rotateDeg})`}>
+        {/* ── PROTRACTOR SEMICIRCLE (180° arc, centered at pivotY) ── */}
+        {/* Full semicircle background fill (faint) */}
+        <path
+          d={`M ${poleX-arcR},${pivotY} A ${arcR},${arcR} 0 0,1 ${poleX+arcR},${pivotY} Z`}
+          fill="#060e1a" opacity="0.4"
+        />
+        {/* Semicircle arc outline */}
+        <path
+          d={`M ${poleX-arcR},${pivotY} A ${arcR},${arcR} 0 0,1 ${poleX+arcR},${pivotY}`}
+          fill="none" stroke="#1e3a5f" strokeWidth="1.5"
+        />
+        {/* Baseline */}
+        <line x1={poleX-arcR} y1={pivotY} x2={poleX+arcR} y2={pivotY}
+          stroke="#1e3a5f" strokeWidth="1" strokeDasharray="4 4" opacity="0.6" />
 
-          {/*
-            ── CORRECT BEZIER MATH ──
-            Vertex at (0,0), aperture at y=-dishD.
-            For the curve to pass through vertex (0,0) at t=0.5:
-              control point = (0, +dishD)   ← below vertex in local space
-            Path: M -dishW,-dishD  Q 0,+dishD  dishW,-dishD
+        {/* ── TICK MARKS & LABELS ── */}
+        {ticks.map(td => {
+          const tr = (td * Math.PI) / 180;
+          const tx = poleX + arcR * Math.sin(tr);
+          const ty = pivotY - arcR * Math.cos(tr);
+          const isMajor = td % 30 === 0;
+          const tickLen = isMajor ? 12 : 6;
+          const ix = poleX + (arcR - tickLen) * Math.sin(tr);
+          const iy = pivotY - (arcR - tickLen) * Math.cos(tr);
+          const elLabel = 90 - Math.abs(td);
+          const lx = poleX + (arcR + 18) * Math.sin(tr);
+          const ly = pivotY - (arcR + 18) * Math.cos(tr);
+          return (
+            <g key={td}>
+              <line x1={tx} y1={ty} x2={ix} y2={iy}
+                stroke={isMajor ? "#334155" : "#1e3a5f"}
+                strokeWidth={isMajor ? 1.8 : 1} />
+              {isMajor && (
+                <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
+                  fill="#334155" fontSize="9" fontWeight="500">{elLabel}°</text>
+              )}
+            </g>
+          );
+        })}
 
-            Inner arcs at scale t (x ∈ [-dishW·t, +dishW·t]):
-              endpoints on parabola: y = -dishD·t²
-              control: (0, +dishD·t²)
-          */}
-
-          {/* Dish surface fill */}
-          <path
-            d={`M ${-dishW},${-dishD} Q 0,${dishD} ${dishW},${-dishD} Z`}
-            fill="#06101e" opacity="0.95"
-          />
-
-          {/* Inner reference arcs (correctly computed) */}
-          {[0.75, 0.48].map((t) => (
+        {/* ── DISH ASSEMBLY (rotates around pivotY) ── */}
+        <g transform={`translate(${poleX},${pivotY}) rotate(${rotateDeg})`}>
+          {/* Dish fill */}
+          <path d={`M ${-dishW},${-dishD} Q 0,${dishD} ${dishW},${-dishD} Z`}
+            fill="#060f1e" opacity="0.97" />
+          {/* Inner arcs */}
+          {[0.72, 0.44].map(t => (
             <path key={t}
-              d={`M ${-dishW * t},${-dishD * t * t} Q 0,${dishD * t * t} ${dishW * t},${-dishD * t * t}`}
-              fill="none" stroke="#1e3a5f" strokeWidth="1" opacity="0.75"
-            />
+              d={`M ${-dishW*t},${-dishD*t*t} Q 0,${dishD*t*t} ${dishW*t},${-dishD*t*t}`}
+              fill="none" stroke="#1e3a5f" strokeWidth="1" opacity="0.7" />
           ))}
-
-          {/* Center symmetry axis */}
+          {/* Symmetry axis */}
           <line x1={0} y1={0} x2={0} y2={-dishD}
-            stroke="#1e3a5f" strokeWidth="0.8" strokeDasharray="3 3" opacity="0.6" />
-
-          {/* Main parabolic rim */}
-          <path
-            d={`M ${-dishW},${-dishD} Q 0,${dishD} ${dishW},${-dishD}`}
-            fill="none" stroke="#2563eb" strokeWidth="3.5" strokeLinecap="round"
-          />
-
-          {/* Aperture opening edge */}
+            stroke="#1e3a5f" strokeWidth="0.8" strokeDasharray="3 3" opacity="0.5" />
+          {/* Main rim */}
+          <path d={`M ${-dishW},${-dishD} Q 0,${dishD} ${dishW},${-dishD}`}
+            fill="none" stroke="#2563eb" strokeWidth="3.5" strokeLinecap="round" />
+          {/* Aperture edge */}
           <line x1={-dishW} y1={-dishD} x2={dishW} y2={-dishD}
             stroke="#2563eb" strokeWidth="3.5" strokeLinecap="round" />
-
           {/* Vertex hub */}
-          <circle cx={0} cy={0} r={6} fill="#0a1628" stroke="#3b82f6" strokeWidth="2" />
-          <circle cx={0} cy={0} r={2.5} fill="#2563eb" />
-
-          {/* LNB side braces: aperture rim corners → LNB tip */}
-          <line x1={-dishW * 0.58} y1={-dishD} x2={0} y2={-lnbLen}
-            stroke="#334155" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={dishW * 0.58} y1={-dishD} x2={0} y2={-lnbLen}
-            stroke="#334155" strokeWidth="1.5" strokeLinecap="round" />
-
-          {/* Main arm rod: vertex → LNB */}
+          <circle cx={0} cy={0} r={5} fill="#0a1628" stroke="#3b82f6" strokeWidth="1.8" />
+          <circle cx={0} cy={0} r={2} fill="#2563eb" />
+          {/* Side braces → LNB */}
+          <line x1={-dishW*0.6} y1={-dishD} x2={0} y2={-lnbLen}
+            stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
+          <line x1={dishW*0.6} y1={-dishD} x2={0} y2={-lnbLen}
+            stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
+          {/* Arm rod */}
           <line x1={0} y1={0} x2={0} y2={-lnbLen}
-            stroke="#475569" strokeWidth="3.5" strokeLinecap="round" />
-
+            stroke="#475569" strokeWidth="3" strokeLinecap="round" />
           {/* LNB head */}
-          <rect x={-8} y={-lnbLen - 8} width={16} height={14} rx={3}
-            fill="#0f172a" stroke="#60a5fa" strokeWidth="2" />
-          <rect x={-4} y={-lnbLen - 5} width={8} height={8} rx={1.5}
+          <rect x={-7} y={-lnbLen-7} width={14} height={12} rx={2.5}
+            fill="#0f172a" stroke="#60a5fa" strokeWidth="1.8" />
+          <rect x={-3.5} y={-lnbLen-4} width={7} height={7} rx={1.5}
             fill="#1d4ed8" />
-          <text x={14} y={-lnbLen} dominantBaseline="central"
-            fill="#a78bfa" fontSize="9" fontWeight="700">LNB</text>
         </g>
 
-        {/* ── ELEVATION ARC (drawn in world space, not inside rotated group) ── */}
-        {(() => {
-          const arcR = 52;
-          const startAngle = -Math.PI / 2; // straight up
-          const endAngle = startAngle + rotateRad;
-          const largeArc = Math.abs(rotateDeg) > 180 ? 1 : 0;
-          const sweep = rotateDeg >= 0 ? 1 : 0;
-          const ax = poleX + arcR * Math.cos(startAngle);
-          const ay = poleTopY + arcR * Math.sin(startAngle);
-          const bx = poleX + arcR * Math.cos(endAngle);
-          const by = poleTopY + arcR * Math.sin(endAngle);
-          const midAngle = (startAngle + endAngle) / 2;
-          const lx = poleX + (arcR + 16) * Math.cos(midAngle);
-          const ly = poleTopY + (arcR + 16) * Math.sin(midAngle);
-          return (
-            <>
-              <path
-                d={`M ${ax},${ay} A ${arcR},${arcR} 0 ${largeArc},${sweep} ${bx},${by}`}
-                fill="none" stroke="#facc15" strokeWidth="1.5" strokeDasharray="5 4" opacity="0.6"
-              />
-              <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
-                fill="#facc15" fontSize="11" fontWeight="800">{elevation}°</text>
-            </>
-          );
-        })()}
+        {/* ── GREEN BEAM: LNB focal point → satellite on arc ── */}
+        <line x1={lnbWorldX} y1={lnbWorldY} x2={satArcX} y2={satArcY}
+          stroke="#22c55e" strokeWidth="7" opacity="0.12" filter="url(#gBm)" />
+        <line x1={lnbWorldX} y1={lnbWorldY} x2={satArcX} y2={satArcY}
+          stroke="#22c55e" strokeWidth="2" opacity="0.95" />
+        <line x1={lnbWorldX} y1={lnbWorldY} x2={satArcX} y2={satArcY}
+          stroke="#86efac" strokeWidth="1" strokeDasharray="8 7" opacity="0.55" />
 
-        {/* ── INFO PANEL (top corner opposite to satellite) ── */}
-        {(() => {
-          const px = isWest ? w - 100 : 8;
-          return (
-            <>
-              <rect x={px} y={8} width={92} height={62} rx={7}
-                fill="#060e1a" stroke="#1e3a5f" strokeWidth="1" opacity="0.9" />
-              <text x={px + 46} y={24} textAnchor="middle" fill="#facc15"
-                fontSize="10" fontWeight="700">El: {elevation}°</text>
-              <text x={px + 46} y={40} textAnchor="middle" fill="#60a5fa"
-                fontSize="9">Az: {azimuth}°</text>
-              <text x={px + 46} y={56} textAnchor="middle" fill="#a78bfa"
-                fontSize="9">Skew: {skew}°</text>
-            </>
-          );
-        })()}
+        {/* LNB focal point dot */}
+        <circle cx={lnbWorldX} cy={lnbWorldY} r={4} fill="#22c55e" opacity="0.3" />
+        <circle cx={lnbWorldX} cy={lnbWorldY} r={2.5} fill="#22c55e" />
+        <circle cx={lnbWorldX} cy={lnbWorldY} r={1} fill="#bbf7d0" />
+
+        {/* ── SATELLITE STICKER on the arc ── */}
+        <g transform={`translate(${satArcX},${satArcY})`} filter="url(#gSat)">
+          {/* Glow halo */}
+          <circle cx={0} cy={0} r={16} fill="#1d4ed8" opacity="0.1" />
+          {/* Body */}
+          <rect x={-7} y={-5} width={14} height={10} rx={2}
+            fill="#1e293b" stroke="#3b82f6" strokeWidth="1.2" />
+          {/* Left panel */}
+          <rect x={-7} y={-2} width={-12} height={4} rx={1}
+            fill="#1e40af" stroke="#3b82f6" strokeWidth="0.8" />
+          <line x1={-11} y1={-2} x2={-11} y2={2} stroke="#93c5fd" strokeWidth="0.6" />
+          <line x1={-14} y1={-2} x2={-14} y2={2} stroke="#93c5fd" strokeWidth="0.6" />
+          {/* Right panel */}
+          <rect x={7} y={-2} width={12} height={4} rx={1}
+            fill="#1e40af" stroke="#3b82f6" strokeWidth="0.8" />
+          <line x1={11} y1={-2} x2={11} y2={2} stroke="#93c5fd" strokeWidth="0.6" />
+          <line x1={14} y1={-2} x2={14} y2={2} stroke="#93c5fd" strokeWidth="0.6" />
+          {/* LED */}
+          <circle cx={3} cy={0} r={1.5} fill="#22c55e" />
+        </g>
+
+        {/* ── INFO LABELS ── */}
+        {/* Elevation badge near the arc */}
+        <rect x={poleX-38} y={9} width={76} height={24} rx={5}
+          fill="#060e1a" stroke="#1e3a5f" strokeWidth="1" opacity="0.9" />
+        <text x={poleX} y={21} textAnchor="middle" dominantBaseline="central"
+          fill="#facc15" fontSize="11" fontWeight="800">
+          {`El ${elevation}°  Az ${azimuth}°`}
+        </text>
+
+        {/* Skew label bottom-right */}
+        <text x={w-8} y={h-10} textAnchor="end" fill="#a78bfa" fontSize="9" fontWeight="600">
+          Skew: {skew}°
+        </text>
+
+        {/* Side labels: W/E */}
+        <text x={poleX - arcR - 8} y={pivotY} textAnchor="end" dominantBaseline="central"
+          fill="#60a5fa" fontSize="10" fontWeight="700">W</text>
+        <text x={poleX + arcR + 8} y={pivotY} textAnchor="start" dominantBaseline="central"
+          fill="#60a5fa" fontSize="10" fontWeight="700">E</text>
       </svg>
     </div>
   );
