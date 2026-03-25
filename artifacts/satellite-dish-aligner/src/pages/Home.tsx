@@ -465,15 +465,9 @@ function DishDiagram({
   const armLen = 44;
   const lnbLen = dishD + armLen; // 74 — total reach from pivot to focal point
 
-  // LNB offset: signed -90 to +90. Positive tilts right in local space, Negative tilts left.
+  // LNB offset: signed -90 to +90. Rotates LNB on a circle centered at dish vertex.
   const signedOffset = Math.max(-90, Math.min(90, lnbOffset));
   const lnbOffRad = (signedOffset * Math.PI) / 180;
-  const lnbNeckLen = 22; // longer arm = LNB tilt is clearly visible
-
-  // LNB center in LOCAL space — pivots around focal point (0, -lnbLen)
-  const lnbCX = Math.sin(lnbOffRad) * lnbNeckLen;
-  const lnbCY = -lnbLen - Math.cos(lnbOffRad) * lnbNeckLen;
-
   const hasOffset = signedOffset !== 0;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
@@ -488,37 +482,27 @@ function DishDiagram({
   const satArcX = poleX + arcR * Math.sin(rotateRad);
   const satArcY = pivotY - arcR * Math.cos(rotateRad);
 
-  // Dish vertex in world space = the rotation pivot itself
+  // Dish vertex (deepest point = rotation pivot)
   const vertexWorldX = poleX;
   const vertexWorldY = pivotY;
 
-  // Focal point world position (arm tip)
-  const focalWorldX = poleX + lnbLen * Math.sin(rotateRad);
-  const focalWorldY = pivotY - lnbLen * Math.cos(rotateRad);
-
-  // Output ray direction: from focal THROUGH LNB center (rotated by lnbOffRad in world space)
+  // LNB direction in world space: dish axis rotated by lnbOffRad
+  // outDirX/Y is the unit vector from vertex toward LNB
   const outDirX = Math.sin(lnbOffRad + rotateRad);
   const outDirY = -Math.cos(lnbOffRad + rotateRad);
 
-  // Actual LNB center in world space = focal + outDir * lnbNeckLen
-  const actualLnbWorldX = focalWorldX + outDirX * lnbNeckLen;
-  const actualLnbWorldY = focalWorldY + outDirY * lnbNeckLen;
+  // LNB in LOCAL space (on circle of radius lnbLen, centered at vertex)
+  const lnbCX = Math.sin(lnbOffRad) * lnbLen;
+  const lnbCY = -Math.cos(lnbOffRad) * lnbLen;
 
-  // Output ray end: extends past LNB outward
-  const outLen = 55;
-  const outEndX = actualLnbWorldX + outDirX * outLen;
-  const outEndY = actualLnbWorldY + outDirY * outLen;
+  // LNB in WORLD space
+  const lnbWorldX = poleX + lnbLen * outDirX;
+  const lnbWorldY = pivotY + lnbLen * outDirY;
 
-  // ── Rim hit point: signal from satellite hits dish rim, reflects to focal ───
-  // Pick the rim on the "ground side" (lower in world space) for clear bend angle
-  // isWest → satellite is left → rim on left local → (-dishW, -dishD)
-  // !isWest → satellite is right → rim on right local → (dishW, -dishD)
-  const rimSign  = isWest ? -1 : 1;
-  const rimLX    = rimSign * dishW;   // ±60 in local space
-  const rimLY    = -dishD;            // -30 in local space
-  // Transform rim to world space
-  const rimWorldX = poleX + rimLX * Math.cos(rotateRad) - rimLY * Math.sin(rotateRad);
-  const rimWorldY = pivotY + rimLX * Math.sin(rotateRad) + rimLY * Math.cos(rotateRad);
+  // Output ray end (signal exits LNB away from dish)
+  const outLen = 60;
+  const outEndX = lnbWorldX + outDirX * outLen;
+  const outEndY = lnbWorldY + outDirY * outLen;
 
   // ── Tick marks on the semicircle ────────────────────────────────────────────
   const ticks = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90];
@@ -619,9 +603,9 @@ function DishDiagram({
               d={`M ${-dishW*t},${-dishD*t*t} Q 0,${dishD*t*t} ${dishW*t},${-dishD*t*t}`}
               fill="none" stroke="#1e3a5f" strokeWidth="1" opacity="0.7" />
           ))}
-          {/* Symmetry axis */}
-          <line x1={0} y1={0} x2={0} y2={-dishD}
-            stroke="#1e3a5f" strokeWidth="0.8" strokeDasharray="3 3" opacity="0.5" />
+          {/* Dish axis dashed reference */}
+          <line x1={0} y1={0} x2={0} y2={-(lnbLen + 14)}
+            stroke="#1e3a5f" strokeWidth="0.8" strokeDasharray="4 3" opacity="0.4" />
           {/* Main rim */}
           <path d={`M ${-dishW},${-dishD} Q 0,${dishD} ${dishW},${-dishD}`}
             fill="none" stroke="#2563eb" strokeWidth="3.5" strokeLinecap="round" />
@@ -632,37 +616,32 @@ function DishDiagram({
           <circle cx={0} cy={0} r={5} fill="#0a1628" stroke="#3b82f6" strokeWidth="1.8" />
           <circle cx={0} cy={0} r={2} fill="#2563eb" />
 
-          {/* ── Main arm: vertex → focal point (always fixed) ── */}
-          <line x1={0} y1={0} x2={0} y2={-lnbLen}
-            stroke="#475569" strokeWidth="3" strokeLinecap="round" />
+          {/* ── Main arm: vertex → LNB (single arm, rotates with offset) ── */}
+          <line x1={0} y1={0} x2={lnbCX} y2={lnbCY}
+            stroke={hasOffset ? "#f97316" : "#475569"} strokeWidth="3" strokeLinecap="round" />
 
-          {/* ── Side braces: dish rim → LNB center (follow LNB position) ── */}
+          {/* ── Side braces: dish rim → LNB center ── */}
           <line x1={-dishW*0.6} y1={-dishD} x2={lnbCX} y2={lnbCY}
             stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
           <line x1={dishW*0.6} y1={-dishD} x2={lnbCX} y2={lnbCY}
             stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
 
-          {/* ── LNB neck arm: focal → LNB center ── */}
-          <line x1={0} y1={-lnbLen} x2={lnbCX} y2={lnbCY}
-            stroke={hasOffset ? "#f97316" : "#475569"} strokeWidth="2.2" strokeLinecap="round" />
-
-          {/* ── Angle arc at focal point showing tilt angle ── */}
+          {/* ── Rotation angle arc at vertex ── */}
           {hasOffset && (() => {
-            // Arc from axis direction (0,-lnbLen-11) to neck direction (sin*11, -lnbLen-cos*11)
-            const arcR2 = 11;
+            const arcR2 = 22;
             const ex = Math.sin(lnbOffRad) * arcR2;
-            const ey = -lnbLen - Math.cos(lnbOffRad) * arcR2;
+            const ey = -Math.cos(lnbOffRad) * arcR2;
             const sweep = signedOffset > 0 ? 1 : 0;
             const halfRad = lnbOffRad / 2;
             return (
               <>
                 <path
-                  d={`M 0,${-lnbLen - arcR2} A ${arcR2},${arcR2} 0 0,${sweep} ${ex},${ey}`}
+                  d={`M 0,${-arcR2} A ${arcR2},${arcR2} 0 0,${sweep} ${ex},${ey}`}
                   fill="none" stroke="#f97316" strokeWidth="1.4" opacity="0.85"
                 />
                 <text
-                  x={Math.sin(halfRad) * 22}
-                  y={-lnbLen - Math.cos(halfRad) * 22}
+                  x={Math.sin(halfRad) * 34}
+                  y={-Math.cos(halfRad) * 34}
                   textAnchor={signedOffset >= 0 ? "start" : "end"}
                   dominantBaseline="central"
                   fill="#fb923c" fontSize="8" fontWeight="700">
@@ -672,64 +651,61 @@ function DishDiagram({
             );
           })()}
 
-          {/* ── LNB head: faces toward dish vertex (0,0); rotates by signedOffset ── */}
-          {/* The LNB face indicator points downward (+y) toward vertex at 0°.         */}
-          {/* rotate(signedOffset) tilts it: positive=right, negative=left.            */}
+          {/* ── LNB head: faces toward dish vertex (downward at 0°, rotates by signedOffset) ── */}
           <g transform={`translate(${lnbCX},${lnbCY}) rotate(${signedOffset})`}>
-            {/* LNB body */}
             <rect x={-7} y={-6} width={14} height={12} rx={2.5}
               fill="#0f172a" stroke={hasOffset ? "#f97316" : "#60a5fa"} strokeWidth="1.8" />
-            {/* LNB inner element */}
             <rect x={-3.5} y={-3} width={7} height={7} rx={1.5}
               fill={hasOffset ? "#9a3412" : "#1d4ed8"} />
-            {/* Face indicator — points toward vertex (downward, +y direction) */}
             <line x1={0} y1={6} x2={0} y2={13}
               stroke={hasOffset ? "#f97316" : "#60a5fa"} strokeWidth="1.8" opacity="0.8" />
             <circle cx={0} cy={14} r={1.5}
               fill={hasOffset ? "#f97316" : "#60a5fa"} opacity="0.9" />
           </g>
 
-          {/* ── Focal point marker ── */}
-          <circle cx={0} cy={-lnbLen} r={5} fill="none"
-            stroke="#22c55e" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.9" />
-          <circle cx={0} cy={-lnbLen} r={2} fill="#22c55e" opacity="0.85" />
-          <text x={9} y={-lnbLen + 1} dominantBaseline="central"
-            fill="#4ade80" fontSize="7" fontWeight="600" opacity="0.85">بؤرة</text>
+          {/* ── On-axis reference (focal position at offset=0) ── */}
+          <circle cx={0} cy={-lnbLen} r={3.5} fill="none"
+            stroke="#22c55e" strokeWidth="1.2" strokeDasharray="3 2"
+            opacity={hasOffset ? 0.3 : 0.9} />
+          {!hasOffset && (
+            <text x={9} y={-lnbLen + 1} dominantBaseline="central"
+              fill="#4ade80" fontSize="7" fontWeight="600" opacity="0.85">بؤرة</text>
+          )}
         </g>
 
         {/* ══ BEAM SIMULATION ══════════════════════════════════════════════════ */}
 
-        {/* Segment 1: Satellite → Dish RIM (INCOMING signal) — GREEN */}
-        <line x1={satArcX} y1={satArcY} x2={rimWorldX} y2={rimWorldY}
+        {/* Segment 1: Satellite → Vertex (INCOMING signal) — GREEN */}
+        <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
           stroke="#22c55e" strokeWidth="8" opacity="0.08" filter="url(#gBm)" />
-        <line x1={satArcX} y1={satArcY} x2={rimWorldX} y2={rimWorldY}
+        <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
           stroke="#22c55e" strokeWidth="1.8" opacity="0.9" />
-        <line x1={satArcX} y1={satArcY} x2={rimWorldX} y2={rimWorldY}
+        <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
           stroke="#86efac" strokeWidth="0.8" strokeDasharray="9 6" opacity="0.5" />
 
-        {/* Reflection dot at rim hit point */}
-        <circle cx={rimWorldX} cy={rimWorldY} r={5} fill="#22c55e" opacity="0.15" />
-        <circle cx={rimWorldX} cy={rimWorldY} r={3} fill="#22c55e" opacity="0.7" />
+        {/* Reflection dot at vertex */}
+        <circle cx={vertexWorldX} cy={vertexWorldY} r={6} fill="#22c55e" opacity="0.12" />
+        <circle cx={vertexWorldX} cy={vertexWorldY} r={3.5} fill="#22c55e" opacity="0.75" />
 
-        {/* Segment 2: Dish RIM → Focal point (REFLECTED signal) — YELLOW */}
-        <line x1={rimWorldX} y1={rimWorldY} x2={focalWorldX} y2={focalWorldY}
+        {/* Segment 2: Vertex → LNB (REFLECTED signal — angle of incidence = angle of reflection) — YELLOW */}
+        <line x1={vertexWorldX} y1={vertexWorldY} x2={lnbWorldX} y2={lnbWorldY}
           stroke="#facc15" strokeWidth="7" opacity="0.08" filter="url(#gBm)" />
-        <line x1={rimWorldX} y1={rimWorldY} x2={focalWorldX} y2={focalWorldY}
+        <line x1={vertexWorldX} y1={vertexWorldY} x2={lnbWorldX} y2={lnbWorldY}
           stroke="#facc15" strokeWidth="1.8" opacity="0.9" />
-        <line x1={rimWorldX} y1={rimWorldY} x2={focalWorldX} y2={focalWorldY}
+        <line x1={vertexWorldX} y1={vertexWorldY} x2={lnbWorldX} y2={lnbWorldY}
           stroke="#fef08a" strokeWidth="0.8" strokeDasharray="9 6" opacity="0.5" />
 
-        {/* Focal point dot */}
-        <circle cx={focalWorldX} cy={focalWorldY} r={5} fill="#facc15" opacity="0.2" />
-        <circle cx={focalWorldX} cy={focalWorldY} r={3} fill="#facc15" />
-        <circle cx={focalWorldX} cy={focalWorldY} r={1.2} fill="#fef9c3" />
+        {/* LNB dot */}
+        <circle cx={lnbWorldX} cy={lnbWorldY} r={5} fill="#facc15" opacity="0.2" />
+        <circle cx={lnbWorldX} cy={lnbWorldY} r={3} fill="#facc15" />
+        <circle cx={lnbWorldX} cy={lnbWorldY} r={1.2} fill="#fef9c3" />
 
-        {/* Segment 3: Focal → through LNB → outward (only this segment changes with LNB angle) */}
-        <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
+        {/* Segment 3: LNB → outward (OUTPUT signal exits toward receiver) — YELLOW */}
+        <line x1={lnbWorldX} y1={lnbWorldY} x2={outEndX} y2={outEndY}
           stroke="#facc15" strokeWidth="7" opacity="0.1" filter="url(#gBm)" />
-        <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
+        <line x1={lnbWorldX} y1={lnbWorldY} x2={outEndX} y2={outEndY}
           stroke="#facc15" strokeWidth="1.8" opacity="0.9" />
-        <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
+        <line x1={lnbWorldX} y1={lnbWorldY} x2={outEndX} y2={outEndY}
           stroke="#fef08a" strokeWidth="0.8" strokeDasharray="7 5" opacity="0.6" />
 
         {/* ── SATELLITE STICKER on the arc ── */}
