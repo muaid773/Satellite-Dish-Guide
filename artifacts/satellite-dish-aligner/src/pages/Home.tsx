@@ -686,9 +686,9 @@ function DishDiagram({
             fill="#4ade80" fontSize="7" fontWeight="600" opacity="0.85">بؤرة</text>
         </g>
 
-        {/* ══ LASER BEAM SIMULATION ══════════════════════════════════════════════ */}
+        {/* ══ BEAM SIMULATION ══════════════════════════════════════════════════ */}
 
-        {/* Segment 1: Satellite → Dish vertex (incoming signal) — GREEN */}
+        {/* Segment 1: Satellite → Dish vertex (INCOMING signal) — GREEN */}
         <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
           stroke="#22c55e" strokeWidth="8" opacity="0.08" filter="url(#gBm)" />
         <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
@@ -696,26 +696,25 @@ function DishDiagram({
         <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
           stroke="#86efac" strokeWidth="0.8" strokeDasharray="9 6" opacity="0.5" />
 
-        {/* Segment 2: Dish vertex → Focal point (reflected inside dish) — GREEN */}
+        {/* Segment 2: Dish vertex → Focal point (REFLECTED inside dish) — YELLOW */}
         <line x1={vertexWorldX} y1={vertexWorldY} x2={focalWorldX} y2={focalWorldY}
-          stroke="#22c55e" strokeWidth="8" opacity="0.08" filter="url(#gBm)" />
+          stroke="#facc15" strokeWidth="7" opacity="0.08" filter="url(#gBm)" />
         <line x1={vertexWorldX} y1={vertexWorldY} x2={focalWorldX} y2={focalWorldY}
-          stroke="#22c55e" strokeWidth="1.8" opacity="0.9" />
+          stroke="#facc15" strokeWidth="1.8" opacity="0.9" />
         <line x1={vertexWorldX} y1={vertexWorldY} x2={focalWorldX} y2={focalWorldY}
-          stroke="#86efac" strokeWidth="0.8" strokeDasharray="9 6" opacity="0.5" />
+          stroke="#fef08a" strokeWidth="0.8" strokeDasharray="9 6" opacity="0.5" />
 
         {/* Focal point dot */}
-        <circle cx={focalWorldX} cy={focalWorldY} r={4.5} fill="#22c55e" opacity="0.25" />
-        <circle cx={focalWorldX} cy={focalWorldY} r={2.5} fill="#22c55e" />
-        <circle cx={focalWorldX} cy={focalWorldY} r={1} fill="#bbf7d0" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={4.5} fill="#facc15" opacity="0.2" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={2.5} fill="#facc15" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={1} fill="#fef9c3" />
 
-        {/* Segment 3: Output ray from LNB outward — AMBER/YELLOW */}
-        {/* This shows the direction of the signal after the LNB based on its tilt */}
-        <line x1={actualLnbWorldX} y1={actualLnbWorldY} x2={outEndX} y2={outEndY}
+        {/* Segment 3: Focal point → through LNB → outward (LNB angle affects this) — YELLOW */}
+        <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
           stroke="#facc15" strokeWidth="7" opacity="0.1" filter="url(#gBm)" />
-        <line x1={actualLnbWorldX} y1={actualLnbWorldY} x2={outEndX} y2={outEndY}
+        <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
           stroke="#facc15" strokeWidth="1.8" opacity="0.9" />
-        <line x1={actualLnbWorldX} y1={actualLnbWorldY} x2={outEndX} y2={outEndY}
+        <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
           stroke="#fef08a" strokeWidth="0.8" strokeDasharray="7 5" opacity="0.6" />
 
         {/* ── SATELLITE STICKER on the arc ── */}
@@ -726,7 +725,7 @@ function DishDiagram({
           <rect x={-7} y={-5} width={14} height={10} rx={2}
             fill="#1e293b" stroke="#3b82f6" strokeWidth="1.2" />
           {/* Left panel */}
-          <rect x={-7} y={-2} width={-12} height={4} rx={1}
+          <rect x={-19} y={-2} width={12} height={4} rx={1}
             fill="#1e40af" stroke="#3b82f6" strokeWidth="0.8" />
           <line x1={-11} y1={-2} x2={-11} y2={2} stroke="#93c5fd" strokeWidth="0.6" />
           <line x1={-14} y1={-2} x2={-14} y2={2} stroke="#93c5fd" strokeWidth="0.6" />
@@ -803,7 +802,7 @@ export default function Home() {
   const handleLnbOffsetChange = useCallback((val: string) => {
     setLnbOffsetInput(val);
     const num = parseFloat(val);
-    if (!isNaN(num) && num >= 0 && num <= 90) {
+    if (!isNaN(num) && num >= -90 && num <= 90) {
       setLnbOffset(num);
     }
   }, []);
@@ -925,7 +924,7 @@ export default function Home() {
               <input
                 type="number"
                 step="0.5"
-                min="0"
+                min="-90"
                 max="90"
                 value={lnbOffsetInput}
                 onChange={(e) => handleLnbOffsetChange(e.target.value)}
@@ -935,7 +934,11 @@ export default function Home() {
               <span className="text-xs text-slate-400">°</span>
             </div>
             <p className="text-xs text-slate-500">
-              {lnbOffset === 0 ? "العدسة في البؤرة (مثالي)" : `تعويض ${lnbOffset}° → ارتفاع مُعدَّل: ${adjustedElevation}°`}
+              {lnbOffset === 0
+                ? "العدسة في البؤرة (مثالي)"
+                : lnbOffset > 0
+                ? `+${lnbOffset}° → العدسة تميل نحو القمر`
+                : `${lnbOffset}° → العدسة تميل بعيداً عن القمر`}
             </p>
           </div>
 
