@@ -441,10 +441,12 @@ function DishDiagram({
   azimuth,
   elevation,
   skew,
+  lnbOffset,
 }: {
   azimuth: number;
   elevation: number;
   skew: number;
+  lnbOffset: number;
 }) {
   // ── SVG canvas ─────────────────────────────────────────────────────────────
   const w = 440;
@@ -454,37 +456,46 @@ function DishDiagram({
   const azNorm = ((azimuth % 360) + 360) % 360;
   const isWest = azNorm > 180;
 
-  // Rotation of dish around poleTopY pivot (SVG: +ve = clockwise):
-  //   East → +(90-El): El=0 → +90° (faces right), El=90 → 0° (faces up)
-  //   West → -(90-El): El=0 → -90° (faces left), El=90 → 0° (faces up)
   const rotateDeg = (90 - elevation) * (isWest ? -1 : 1);
   const rotateRad = (rotateDeg * Math.PI) / 180;
 
   // ── Dish geometry (local space, dish faces UP) ─────────────────────────────
-  const dishW = 60;   // half-width of aperture
-  const dishD = 30;   // depth (vertex at 0, aperture at y=-dishD)
-  const armLen = 44;  // LNB arm from vertex to LNB tip
-  const lnbLen = dishD + armLen; // 74 — total reach from pivot to LNB
+  const dishW = 60;
+  const dishD = 30;
+  const armLen = 44;
+  const lnbLen = dishD + armLen; // 74 — total reach from pivot to focal point
+
+  // LNB offset secondary arm
+  const offsetArmLen = 22; // length of the secondary LNB arm
+  const junctionLen = lnbLen - offsetArmLen; // main arm stops here (52)
+  const lnbOffRad = (lnbOffset * Math.PI) / 180;
+
+  // LNB actual position in LOCAL space (relative to dish pivot at origin)
+  const lnbLocalX = Math.sin(lnbOffRad) * offsetArmLen;
+  const lnbLocalY = -junctionLen - Math.cos(lnbOffRad) * offsetArmLen;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
-  const poleX   = w / 2;    // 220 — horizontal center
-  const groundY = h - 28;   // 312 — ground line
-  const pivotY  = 230;      // pivot = pole top = CENTER of the protractor arc
+  const poleX   = w / 2;
+  const groundY = h - 28;
+  const pivotY  = 230;
 
   // ── Protractor (semicircle) ─────────────────────────────────────────────────
-  const arcR = 148; // radius of the 180° semicircle
+  const arcR = 148;
 
-  // Satellite sticker: positioned on the arc at the dish's pointing angle
   const satArcX = poleX + arcR * Math.sin(rotateRad);
   const satArcY = pivotY - arcR * Math.cos(rotateRad);
 
-  // LNB world position (focal point — green beam starts here)
-  const lnbWorldX = poleX + lnbLen * Math.sin(rotateRad);
-  const lnbWorldY = pivotY  - lnbLen * Math.cos(rotateRad);
+  // Focal point world position (theoretical — green beam starts here)
+  const focalWorldX = poleX + lnbLen * Math.sin(rotateRad);
+  const focalWorldY = pivotY - lnbLen * Math.cos(rotateRad);
+
+  // Actual LNB world position (after offset rotation)
+  const actualLnbWorldX = poleX + lnbLocalX * Math.cos(rotateRad) - lnbLocalY * Math.sin(rotateRad);
+  const actualLnbWorldY = pivotY + lnbLocalX * Math.sin(rotateRad) + lnbLocalY * Math.cos(rotateRad);
+
+  const hasOffset = lnbOffset > 0;
 
   // ── Tick marks on the semicircle ────────────────────────────────────────────
-  // Ticks span from -90° (left horizontal) to +90° (right horizontal)
-  // Each tick angle `td` from vertical corresponds to elevation = 90-|td|
   const ticks = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90];
 
   return (
@@ -595,33 +606,74 @@ function DishDiagram({
           {/* Vertex hub */}
           <circle cx={0} cy={0} r={5} fill="#0a1628" stroke="#3b82f6" strokeWidth="1.8" />
           <circle cx={0} cy={0} r={2} fill="#2563eb" />
-          {/* Side braces → LNB */}
-          <line x1={-dishW*0.6} y1={-dishD} x2={0} y2={-lnbLen}
+          {/* Side braces → junction point */}
+          <line x1={-dishW*0.6} y1={-dishD} x2={0} y2={-junctionLen}
             stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
-          <line x1={dishW*0.6} y1={-dishD} x2={0} y2={-lnbLen}
+          <line x1={dishW*0.6} y1={-dishD} x2={0} y2={-junctionLen}
             stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
-          {/* Arm rod */}
-          <line x1={0} y1={0} x2={0} y2={-lnbLen}
+          {/* Main arm rod (to junction) */}
+          <line x1={0} y1={0} x2={0} y2={-junctionLen}
             stroke="#475569" strokeWidth="3" strokeLinecap="round" />
-          {/* LNB head */}
-          <rect x={-7} y={-lnbLen-7} width={14} height={12} rx={2.5}
-            fill="#0f172a" stroke="#60a5fa" strokeWidth="1.8" />
-          <rect x={-3.5} y={-lnbLen-4} width={7} height={7} rx={1.5}
-            fill="#1d4ed8" />
+          {/* Secondary LNB offset arm */}
+          <line x1={0} y1={-junctionLen} x2={lnbLocalX} y2={lnbLocalY}
+            stroke={hasOffset ? "#f97316" : "#475569"} strokeWidth="2.5" strokeLinecap="round" />
+          {/* Angle arc indicator when offset > 0 */}
+          {hasOffset && (
+            <>
+              <path
+                d={`M 0,${-(junctionLen - 10)} A 10,10 0 0,${lnbLocalX >= 0 ? 1 : 0} ${Math.sin(lnbOffRad)*10},${-junctionLen - Math.cos(lnbOffRad)*10}`}
+                fill="none" stroke="#f97316" strokeWidth="1.2" opacity="0.7"
+              />
+              <text x={Math.sin(lnbOffRad)*18} y={-junctionLen - Math.cos(lnbOffRad)*18}
+                textAnchor="middle" dominantBaseline="central"
+                fill="#f97316" fontSize="7" fontWeight="700">
+                {lnbOffset}°
+              </text>
+            </>
+          )}
+          {/* LNB head at offset position */}
+          <rect x={lnbLocalX - 7} y={lnbLocalY - 7} width={14} height={12} rx={2.5}
+            fill="#0f172a" stroke={hasOffset ? "#f97316" : "#60a5fa"} strokeWidth="1.8" />
+          <rect x={lnbLocalX - 3.5} y={lnbLocalY - 4} width={7} height={7} rx={1.5}
+            fill={hasOffset ? "#9a3412" : "#1d4ed8"} />
+          {/* Focal point marker (only when offset > 0) */}
+          {hasOffset && (
+            <>
+              <circle cx={0} cy={-lnbLen} r={5} fill="none" stroke="#22c55e"
+                strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8" />
+              <circle cx={0} cy={-lnbLen} r={2} fill="#22c55e" opacity="0.7" />
+              <text x={8} y={-lnbLen} dominantBaseline="central"
+                fill="#22c55e" fontSize="7" opacity="0.8">بؤرة</text>
+            </>
+          )}
         </g>
 
-        {/* ── GREEN BEAM: LNB focal point → satellite on arc ── */}
-        <line x1={lnbWorldX} y1={lnbWorldY} x2={satArcX} y2={satArcY}
+        {/* ── GREEN BEAM: focal point → satellite on arc (stays at theoretical focal point) ── */}
+        <line x1={focalWorldX} y1={focalWorldY} x2={satArcX} y2={satArcY}
           stroke="#22c55e" strokeWidth="7" opacity="0.12" filter="url(#gBm)" />
-        <line x1={lnbWorldX} y1={lnbWorldY} x2={satArcX} y2={satArcY}
+        <line x1={focalWorldX} y1={focalWorldY} x2={satArcX} y2={satArcY}
           stroke="#22c55e" strokeWidth="2" opacity="0.95" />
-        <line x1={lnbWorldX} y1={lnbWorldY} x2={satArcX} y2={satArcY}
+        <line x1={focalWorldX} y1={focalWorldY} x2={satArcX} y2={satArcY}
           stroke="#86efac" strokeWidth="1" strokeDasharray="8 7" opacity="0.55" />
 
-        {/* LNB focal point dot */}
-        <circle cx={lnbWorldX} cy={lnbWorldY} r={4} fill="#22c55e" opacity="0.3" />
-        <circle cx={lnbWorldX} cy={lnbWorldY} r={2.5} fill="#22c55e" />
-        <circle cx={lnbWorldX} cy={lnbWorldY} r={1} fill="#bbf7d0" />
+        {/* ── DASHED LINE: actual LNB → focal point (shows gap when offset > 0) ── */}
+        {hasOffset && (
+          <line x1={actualLnbWorldX} y1={actualLnbWorldY} x2={focalWorldX} y2={focalWorldY}
+            stroke="#f97316" strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
+        )}
+
+        {/* Focal point dot */}
+        <circle cx={focalWorldX} cy={focalWorldY} r={4} fill="#22c55e" opacity="0.3" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={2.5} fill="#22c55e" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={1} fill="#bbf7d0" />
+
+        {/* Actual LNB position dot (orange when offset) */}
+        {hasOffset && (
+          <>
+            <circle cx={actualLnbWorldX} cy={actualLnbWorldY} r={5} fill="#f97316" opacity="0.25" />
+            <circle cx={actualLnbWorldX} cy={actualLnbWorldY} r={3} fill="#f97316" opacity="0.9" />
+          </>
+        )}
 
         {/* ── SATELLITE STICKER on the arc ── */}
         <g transform={`translate(${satArcX},${satArcY})`} filter="url(#gSat)">
@@ -922,6 +974,7 @@ export default function Home() {
                 azimuth={angles.azimuth}
                 elevation={adjustedElevation}
                 skew={angles.skew}
+                lnbOffset={lnbOffset}
               />
             </div>
           </div>
