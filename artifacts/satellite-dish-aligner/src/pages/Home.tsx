@@ -465,14 +465,17 @@ function DishDiagram({
   const armLen = 44;
   const lnbLen = dishD + armLen; // 74 — total reach from pivot to focal point
 
-  // LNB offset secondary arm
-  const offsetArmLen = 22; // length of the secondary LNB arm
-  const junctionLen = lnbLen - offsetArmLen; // main arm stops here (52)
-  const lnbOffRad = (lnbOffset * Math.PI) / 180;
+  // LNB offset: the LNB head rotates around the focal point (0, -lnbLen)
+  // Clamped to [0, 90] degrees
+  const clampedOffset = Math.max(0, Math.min(90, lnbOffset));
+  const lnbOffRad = (clampedOffset * Math.PI) / 180;
+  const lnbNeckLen = 14; // short arm from focal point to LNB center
 
-  // LNB actual position in LOCAL space (relative to dish pivot at origin)
-  const lnbLocalX = Math.sin(lnbOffRad) * offsetArmLen;
-  const lnbLocalY = -junctionLen - Math.cos(lnbOffRad) * offsetArmLen;
+  // LNB center in LOCAL space — pivots around focal point (0, -lnbLen)
+  const lnbCX = Math.sin(lnbOffRad) * lnbNeckLen;
+  const lnbCY = -lnbLen - Math.cos(lnbOffRad) * lnbNeckLen;
+
+  const hasOffset = clampedOffset > 0;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
   const poleX   = w / 2;
@@ -485,15 +488,14 @@ function DishDiagram({
   const satArcX = poleX + arcR * Math.sin(rotateRad);
   const satArcY = pivotY - arcR * Math.cos(rotateRad);
 
-  // Focal point world position (theoretical — green beam starts here)
+  // Focal point world position — the green beam always starts here
   const focalWorldX = poleX + lnbLen * Math.sin(rotateRad);
   const focalWorldY = pivotY - lnbLen * Math.cos(rotateRad);
 
-  // Actual LNB world position (after offset rotation)
-  const actualLnbWorldX = poleX + lnbLocalX * Math.cos(rotateRad) - lnbLocalY * Math.sin(rotateRad);
-  const actualLnbWorldY = pivotY + lnbLocalX * Math.sin(rotateRad) + lnbLocalY * Math.cos(rotateRad);
-
-  const hasOffset = lnbOffset > 0;
+  // Actual LNB center in world space (after dish rotation is applied)
+  // SVG rotation by rotateRad around origin (0,0): x'=x·cos-y·sin, y'=x·sin+y·cos
+  const actualLnbWorldX = poleX + lnbCX * Math.cos(rotateRad) - lnbCY * Math.sin(rotateRad);
+  const actualLnbWorldY = pivotY + lnbCX * Math.sin(rotateRad) + lnbCY * Math.cos(rotateRad);
 
   // ── Tick marks on the semicircle ────────────────────────────────────────────
   const ticks = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90];
@@ -606,49 +608,66 @@ function DishDiagram({
           {/* Vertex hub */}
           <circle cx={0} cy={0} r={5} fill="#0a1628" stroke="#3b82f6" strokeWidth="1.8" />
           <circle cx={0} cy={0} r={2} fill="#2563eb" />
-          {/* Side braces → junction point */}
-          <line x1={-dishW*0.6} y1={-dishD} x2={0} y2={-junctionLen}
-            stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
-          <line x1={dishW*0.6} y1={-dishD} x2={0} y2={-junctionLen}
-            stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
-          {/* Main arm rod (to junction) */}
-          <line x1={0} y1={0} x2={0} y2={-junctionLen}
+
+          {/* ── Main arm: vertex → focal point (always fixed) ── */}
+          <line x1={0} y1={0} x2={0} y2={-lnbLen}
             stroke="#475569" strokeWidth="3" strokeLinecap="round" />
-          {/* Secondary LNB offset arm */}
-          <line x1={0} y1={-junctionLen} x2={lnbLocalX} y2={lnbLocalY}
-            stroke={hasOffset ? "#f97316" : "#475569"} strokeWidth="2.5" strokeLinecap="round" />
-          {/* Angle arc indicator when offset > 0 */}
+
+          {/* ── Side braces: dish rim → LNB center (follow LNB position) ── */}
+          <line x1={-dishW*0.6} y1={-dishD} x2={lnbCX} y2={lnbCY}
+            stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
+          <line x1={dishW*0.6} y1={-dishD} x2={lnbCX} y2={lnbCY}
+            stroke="#334155" strokeWidth="1.4" strokeLinecap="round" />
+
+          {/* ── LNB neck arm: focal → LNB center (orange when offset) ── */}
+          {hasOffset && (
+            <line x1={0} y1={-lnbLen} x2={lnbCX} y2={lnbCY}
+              stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" />
+          )}
+
+          {/* ── Angle arc at focal point showing offset angle ── */}
           {hasOffset && (
             <>
+              {/* Arc: from axis extension (0, -lnbLen-10) to offset arm (sin*10, -lnbLen-cos*10) */}
               <path
-                d={`M 0,${-(junctionLen - 10)} A 10,10 0 0,${lnbLocalX >= 0 ? 1 : 0} ${Math.sin(lnbOffRad)*10},${-junctionLen - Math.cos(lnbOffRad)*10}`}
-                fill="none" stroke="#f97316" strokeWidth="1.2" opacity="0.7"
+                d={`M 0,${-lnbLen - 10} A 10,10 0 0,1 ${Math.sin(lnbOffRad)*10},${-lnbLen - Math.cos(lnbOffRad)*10}`}
+                fill="none" stroke="#f97316" strokeWidth="1.3" opacity="0.8"
               />
-              <text x={Math.sin(lnbOffRad)*18} y={-junctionLen - Math.cos(lnbOffRad)*18}
+              {/* Angle label at arc midpoint */}
+              <text
+                x={Math.sin(lnbOffRad / 2) * 20}
+                y={-lnbLen - Math.cos(lnbOffRad / 2) * 20}
                 textAnchor="middle" dominantBaseline="central"
-                fill="#f97316" fontSize="7" fontWeight="700">
-                {lnbOffset}°
+                fill="#fb923c" fontSize="8" fontWeight="700">
+                {clampedOffset}°
               </text>
             </>
           )}
-          {/* LNB head at offset position */}
-          <rect x={lnbLocalX - 7} y={lnbLocalY - 7} width={14} height={12} rx={2.5}
-            fill="#0f172a" stroke={hasOffset ? "#f97316" : "#60a5fa"} strokeWidth="1.8" />
-          <rect x={lnbLocalX - 3.5} y={lnbLocalY - 4} width={7} height={7} rx={1.5}
-            fill={hasOffset ? "#9a3412" : "#1d4ed8"} />
-          {/* Focal point marker (only when offset > 0) */}
+
+          {/* ── LNB head: centered at (lnbCX, lnbCY), rotated by offset angle ── */}
+          <g transform={`translate(${lnbCX},${lnbCY}) rotate(${clampedOffset})`}>
+            <rect x={-7} y={-6} width={14} height={12} rx={2.5}
+              fill="#0f172a" stroke={hasOffset ? "#f97316" : "#60a5fa"} strokeWidth="1.8" />
+            <rect x={-3.5} y={-3} width={7} height={7} rx={1.5}
+              fill={hasOffset ? "#9a3412" : "#1d4ed8"} />
+            {/* LNB face indicator line */}
+            <line x1={0} y1={-6} x2={0} y2={-10}
+              stroke={hasOffset ? "#f97316" : "#60a5fa"} strokeWidth="1.5" opacity="0.7" />
+          </g>
+
+          {/* ── Focal point ring: always visible when hasOffset ── */}
           {hasOffset && (
             <>
-              <circle cx={0} cy={-lnbLen} r={5} fill="none" stroke="#22c55e"
-                strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8" />
-              <circle cx={0} cy={-lnbLen} r={2} fill="#22c55e" opacity="0.7" />
-              <text x={8} y={-lnbLen} dominantBaseline="central"
-                fill="#22c55e" fontSize="7" opacity="0.8">بؤرة</text>
+              <circle cx={0} cy={-lnbLen} r={6} fill="none"
+                stroke="#22c55e" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.9" />
+              <circle cx={0} cy={-lnbLen} r={2.5} fill="#22c55e" opacity="0.8" />
+              <text x={10} y={-lnbLen + 1} dominantBaseline="central"
+                fill="#4ade80" fontSize="7" fontWeight="600" opacity="0.9">بؤرة</text>
             </>
           )}
         </g>
 
-        {/* ── GREEN BEAM: focal point → satellite on arc (stays at theoretical focal point) ── */}
+        {/* ── GREEN BEAM: focal point → satellite (always from theoretical focal, unchanged) ── */}
         <line x1={focalWorldX} y1={focalWorldY} x2={satArcX} y2={satArcY}
           stroke="#22c55e" strokeWidth="7" opacity="0.12" filter="url(#gBm)" />
         <line x1={focalWorldX} y1={focalWorldY} x2={satArcX} y2={satArcY}
@@ -656,21 +675,21 @@ function DishDiagram({
         <line x1={focalWorldX} y1={focalWorldY} x2={satArcX} y2={satArcY}
           stroke="#86efac" strokeWidth="1" strokeDasharray="8 7" opacity="0.55" />
 
-        {/* ── DASHED LINE: actual LNB → focal point (shows gap when offset > 0) ── */}
+        {/* ── DASHED ORANGE: actual LNB center → focal point (gap indicator) ── */}
         {hasOffset && (
           <line x1={actualLnbWorldX} y1={actualLnbWorldY} x2={focalWorldX} y2={focalWorldY}
-            stroke="#f97316" strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
+            stroke="#f97316" strokeWidth="1.4" strokeDasharray="5 4" opacity="0.6" />
         )}
 
-        {/* Focal point dot */}
+        {/* Focal point dot (green) */}
         <circle cx={focalWorldX} cy={focalWorldY} r={4} fill="#22c55e" opacity="0.3" />
         <circle cx={focalWorldX} cy={focalWorldY} r={2.5} fill="#22c55e" />
         <circle cx={focalWorldX} cy={focalWorldY} r={1} fill="#bbf7d0" />
 
-        {/* Actual LNB position dot (orange when offset) */}
+        {/* Actual LNB center dot (orange, only when offset > 0) */}
         {hasOffset && (
           <>
-            <circle cx={actualLnbWorldX} cy={actualLnbWorldY} r={5} fill="#f97316" opacity="0.25" />
+            <circle cx={actualLnbWorldX} cy={actualLnbWorldY} r={5} fill="#f97316" opacity="0.2" />
             <circle cx={actualLnbWorldX} cy={actualLnbWorldY} r={3} fill="#f97316" opacity="0.9" />
           </>
         )}
