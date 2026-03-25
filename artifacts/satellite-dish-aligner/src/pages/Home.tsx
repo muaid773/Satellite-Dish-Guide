@@ -65,7 +65,8 @@ function calcSatelliteAngles(
   const y = Math.cos(lat_r) * Math.sin(lonDiff);
   const z = Math.sin(lat_r);
 
-  const elevation = toDeg(Math.atan(x / Math.sqrt(y * y + z * z)));
+  const rawElevation = toDeg(Math.atan(x / Math.sqrt(y * y + z * z)));
+  const elevation = Math.max(0, rawElevation);
 
   // Azimuth from true North (clockwise): use ENU east/north components
   // E = sin(lonDiff), N = -sin(lat)*cos(lonDiff)
@@ -674,6 +675,8 @@ export default function Home() {
   const [satLonInput, setSatLonInput] = useState(String(SATELLITES[0].longitude));
   const [angles, setAngles] = useState({ azimuth: 0, elevation: 0, skew: 0 });
   const [parseError, setParseError] = useState(false);
+  const [lnbOffset, setLnbOffset] = useState(0);
+  const [lnbOffsetInput, setLnbOffsetInput] = useState("0");
 
   const applyCoords = useCallback((input: string) => {
     const parsed = parseCoordinates(input);
@@ -702,6 +705,14 @@ export default function Home() {
     }
   }, []);
 
+  const handleLnbOffsetChange = useCallback((val: string) => {
+    setLnbOffsetInput(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0 && num <= 90) {
+      setLnbOffset(num);
+    }
+  }, []);
+
   useEffect(() => {
     applyCoords(coordInput);
   }, []);
@@ -712,6 +723,8 @@ export default function Home() {
       setAngles(a);
     }
   }, [coords, selectedSat]);
+
+  const adjustedElevation = Math.max(0, Math.min(90, Math.round((angles.elevation - lnbOffset) * 10) / 10));
 
   return (
     <div
@@ -809,6 +822,28 @@ export default function Home() {
             </div>
           </div>
 
+          <div className="w-full sm:min-w-[200px] sm:w-auto flex flex-col gap-1.5">
+            <label className="block text-xs text-purple-400 font-semibold tracking-wider">
+              زاوية انحراف العدسة (LNB Offset)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                max="90"
+                value={lnbOffsetInput}
+                onChange={(e) => handleLnbOffsetChange(e.target.value)}
+                className="flex-1 rounded-lg px-3 py-2 text-sm font-mono bg-slate-800/80 border border-purple-900/50 text-white placeholder-slate-500 outline-none"
+                dir="ltr"
+              />
+              <span className="text-xs text-slate-400">°</span>
+            </div>
+            <p className="text-xs text-slate-500">
+              {lnbOffset === 0 ? "العدسة في البؤرة (مثالي)" : `تعويض ${lnbOffset}° → ارتفاع مُعدَّل: ${adjustedElevation}°`}
+            </p>
+          </div>
+
           <button
             onClick={() => applyCoords(coordInput)}
             className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all"
@@ -853,7 +888,7 @@ export default function Home() {
                 </defs>
                 {[
                   { label: "الاتجاه", sub: "Azimuth", value: `${angles.azimuth}°`, color: "#facc15", x: 0 },
-                  { label: "الارتفاع", sub: "Elevation", value: `${angles.elevation}°`, color: "#60a5fa", x: 110 },
+                  { label: "الارتفاع", sub: lnbOffset > 0 ? `مُعدَّل (−${lnbOffset}°)` : "Elevation", value: `${adjustedElevation}°`, color: "#60a5fa", x: 110 },
                   { label: "انحراف LNB", sub: "Skew", value: `${angles.skew}°`, color: "#a78bfa", x: 220 },
                 ].map((item) => (
                   <g key={item.label} transform={`translate(${item.x}, 0)`}>
@@ -885,7 +920,7 @@ export default function Home() {
             >
               <DishDiagram
                 azimuth={angles.azimuth}
-                elevation={angles.elevation}
+                elevation={adjustedElevation}
                 skew={angles.skew}
               />
             </div>
