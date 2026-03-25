@@ -465,13 +465,12 @@ function DishDiagram({
   const armLen = 44;
   const lnbLen = dishD + armLen; // 74 — total reach from pivot to focal point
 
-  // LNB offset: signed -90 to +90. Positive = tilts toward satellite side, Negative = opposite.
+  // LNB offset: signed -90 to +90. Positive tilts right in local space, Negative tilts left.
   const signedOffset = Math.max(-90, Math.min(90, lnbOffset));
   const lnbOffRad = (signedOffset * Math.PI) / 180;
-  const lnbNeckLen = 14; // short arm from focal point to LNB center
+  const lnbNeckLen = 22; // longer arm = LNB tilt is clearly visible
 
   // LNB center in LOCAL space — pivots around focal point (0, -lnbLen)
-  // sin(θ)>0 → right, sin(θ)<0 → left
   const lnbCX = Math.sin(lnbOffRad) * lnbNeckLen;
   const lnbCY = -lnbLen - Math.cos(lnbOffRad) * lnbNeckLen;
 
@@ -497,17 +496,29 @@ function DishDiagram({
   const focalWorldX = poleX + lnbLen * Math.sin(rotateRad);
   const focalWorldY = pivotY - lnbLen * Math.cos(rotateRad);
 
-  // Actual LNB center in world space
-  const actualLnbWorldX = poleX + lnbCX * Math.cos(rotateRad) - lnbCY * Math.sin(rotateRad);
-  const actualLnbWorldY = pivotY + lnbCX * Math.sin(rotateRad) + lnbCY * Math.cos(rotateRad);
-
-  // Output ray: direction from focal point THROUGH LNB center, extended outward
-  // In local space: (sin(θ), -cos(θ)); in world space this rotates to:
+  // Output ray direction: from focal THROUGH LNB center (rotated by lnbOffRad in world space)
   const outDirX = Math.sin(lnbOffRad + rotateRad);
   const outDirY = -Math.cos(lnbOffRad + rotateRad);
-  const outLen = 65;
+
+  // Actual LNB center in world space = focal + outDir * lnbNeckLen
+  const actualLnbWorldX = focalWorldX + outDirX * lnbNeckLen;
+  const actualLnbWorldY = focalWorldY + outDirY * lnbNeckLen;
+
+  // Output ray end: extends past LNB outward
+  const outLen = 55;
   const outEndX = actualLnbWorldX + outDirX * outLen;
   const outEndY = actualLnbWorldY + outDirY * outLen;
+
+  // ── Rim hit point: signal from satellite hits dish rim, reflects to focal ───
+  // Pick the rim on the "ground side" (lower in world space) for clear bend angle
+  // isWest → satellite is left → rim on left local → (-dishW, -dishD)
+  // !isWest → satellite is right → rim on right local → (dishW, -dishD)
+  const rimSign  = isWest ? -1 : 1;
+  const rimLX    = rimSign * dishW;   // ±60 in local space
+  const rimLY    = -dishD;            // -30 in local space
+  // Transform rim to world space
+  const rimWorldX = poleX + rimLX * Math.cos(rotateRad) - rimLY * Math.sin(rotateRad);
+  const rimWorldY = pivotY + rimLX * Math.sin(rotateRad) + rimLY * Math.cos(rotateRad);
 
   // ── Tick marks on the semicircle ────────────────────────────────────────────
   const ticks = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90];
@@ -688,28 +699,32 @@ function DishDiagram({
 
         {/* ══ BEAM SIMULATION ══════════════════════════════════════════════════ */}
 
-        {/* Segment 1: Satellite → Dish vertex (INCOMING signal) — GREEN */}
-        <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
+        {/* Segment 1: Satellite → Dish RIM (INCOMING signal) — GREEN */}
+        <line x1={satArcX} y1={satArcY} x2={rimWorldX} y2={rimWorldY}
           stroke="#22c55e" strokeWidth="8" opacity="0.08" filter="url(#gBm)" />
-        <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
+        <line x1={satArcX} y1={satArcY} x2={rimWorldX} y2={rimWorldY}
           stroke="#22c55e" strokeWidth="1.8" opacity="0.9" />
-        <line x1={satArcX} y1={satArcY} x2={vertexWorldX} y2={vertexWorldY}
+        <line x1={satArcX} y1={satArcY} x2={rimWorldX} y2={rimWorldY}
           stroke="#86efac" strokeWidth="0.8" strokeDasharray="9 6" opacity="0.5" />
 
-        {/* Segment 2: Dish vertex → Focal point (REFLECTED inside dish) — YELLOW */}
-        <line x1={vertexWorldX} y1={vertexWorldY} x2={focalWorldX} y2={focalWorldY}
+        {/* Reflection dot at rim hit point */}
+        <circle cx={rimWorldX} cy={rimWorldY} r={5} fill="#22c55e" opacity="0.15" />
+        <circle cx={rimWorldX} cy={rimWorldY} r={3} fill="#22c55e" opacity="0.7" />
+
+        {/* Segment 2: Dish RIM → Focal point (REFLECTED signal) — YELLOW */}
+        <line x1={rimWorldX} y1={rimWorldY} x2={focalWorldX} y2={focalWorldY}
           stroke="#facc15" strokeWidth="7" opacity="0.08" filter="url(#gBm)" />
-        <line x1={vertexWorldX} y1={vertexWorldY} x2={focalWorldX} y2={focalWorldY}
+        <line x1={rimWorldX} y1={rimWorldY} x2={focalWorldX} y2={focalWorldY}
           stroke="#facc15" strokeWidth="1.8" opacity="0.9" />
-        <line x1={vertexWorldX} y1={vertexWorldY} x2={focalWorldX} y2={focalWorldY}
+        <line x1={rimWorldX} y1={rimWorldY} x2={focalWorldX} y2={focalWorldY}
           stroke="#fef08a" strokeWidth="0.8" strokeDasharray="9 6" opacity="0.5" />
 
         {/* Focal point dot */}
-        <circle cx={focalWorldX} cy={focalWorldY} r={4.5} fill="#facc15" opacity="0.2" />
-        <circle cx={focalWorldX} cy={focalWorldY} r={2.5} fill="#facc15" />
-        <circle cx={focalWorldX} cy={focalWorldY} r={1} fill="#fef9c3" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={5} fill="#facc15" opacity="0.2" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={3} fill="#facc15" />
+        <circle cx={focalWorldX} cy={focalWorldY} r={1.2} fill="#fef9c3" />
 
-        {/* Segment 3: Focal point → through LNB → outward (LNB angle affects this) — YELLOW */}
+        {/* Segment 3: Focal → through LNB → outward (only this segment changes with LNB angle) */}
         <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
           stroke="#facc15" strokeWidth="7" opacity="0.1" filter="url(#gBm)" />
         <line x1={focalWorldX} y1={focalWorldY} x2={outEndX} y2={outEndY}
@@ -1018,7 +1033,7 @@ export default function Home() {
             >
               <DishDiagram
                 azimuth={angles.azimuth}
-                elevation={adjustedElevation}
+                elevation={angles.elevation}
                 skew={angles.skew}
                 lnbOffset={lnbOffset}
               />
