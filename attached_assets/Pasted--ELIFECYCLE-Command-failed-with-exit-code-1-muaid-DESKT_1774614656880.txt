@@ -1,0 +1,19 @@
+ ELIFECYCLE  Command failed with exit code 1.
+muaid@DESKTOP-1MUN3PS:~/Satellite-Dish-Guide/artifacts/satellite-dish-aligner$ PORT=3000 pnpm run dev
+
+> @workspace/satellite-dish-aligner@0.0.0 dev /home/muaid/Satellite-Dish-Guide/artifacts/satellite-dish-aligner
+> vite --config vite.config.ts --host 0.0.0.0
+
+failed to load config from /home/muaid/Satellite-Dish-Guide/artifacts/satellite-dish-aligner/vite.config.ts
+error when starting dev server:
+Error: BASE_PATH environment variable is required but was not provided.
+    at file:///home/muaid/Satellite-Dish-Guide/artifacts/satellite-dish-aligner/node_modules/.vite-temp/vite.config.ts.timestamp-1774605467527-fc494e409185d.mjs:20:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async loadConfigFromBundledFile (file:///home/muaid/Satellite-Dish-Guide/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35909:12)
+    at async bundleAndLoadConfigFile (file:///home/muaid/Satellite-Dish-Guide/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35797:17)
+    at async loadConfigFromFile (file:///home/muaid/Satellite-Dish-Guide/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35764:42)
+    at async resolveConfig (file:///home/muaid/Satellite-Dish-Guide/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35413:22)
+    at async _createServer (file:///home/muaid/Satellite-Dish-Guide/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:25362:67)
+    at async CAC.<anonymous> (file:///home/muaid/Satellite-Dish-Guide/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:572:18)
+ ELIFECYCLE  Command failed with exit code 1.
