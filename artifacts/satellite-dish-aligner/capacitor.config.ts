@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "com.satellite.dishaligner",
   appName: "ضبط طبق الأقمار",
-  webDir: "dist",
+  webDir: "dist/public",
   server: {
     androidScheme: "https",
     cleartext: false,
