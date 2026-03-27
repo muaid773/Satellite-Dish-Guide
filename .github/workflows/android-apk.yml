@@ -8,6 +8,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: artifacts/satellite-dish-aligner
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,9 +26,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
-
-      - name: cd to dir
-        run: cd artifacts/satellite-dish-aligner
 
       - name: Build web app
         run: pnpm build
@@ -47,4 +48,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: artifacts/satellite-dish-aligner/android/app/build/outputs/apk/debug/*.apk
