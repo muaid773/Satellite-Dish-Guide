@@ -45,11 +45,12 @@ jobs:
       - name: Install Capacitor packages
         working-directory: artifacts/satellite-dish-aligner
         run: |
-          npm install --save-exact \
+          pnpm add -D \
             @capacitor/core@6 \
             @capacitor/cli@6 \
             @capacitor/android@6
-
+            
+      
       # ── 7. Build web app ───────────────────────────────────────────────────
       #   Uses vite.config.local.ts — no PORT or BASE_PATH required
       #   Output: artifacts/satellite-dish-aligner/dist/
