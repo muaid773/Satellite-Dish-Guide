@@ -8,10 +8,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      PORT: 3000   # 🔥 الحل هنا
+
     defaults:
       run:
         working-directory: artifacts/satellite-dish-aligner
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
