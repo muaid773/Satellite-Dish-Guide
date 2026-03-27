@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: cd to dir
+        run: cd artifacts/satellite-dish-aligner
+
       - name: Build web app
         run: pnpm build
 
