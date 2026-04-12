@@ -91,6 +91,37 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/satellite-dish-aligner` (`@workspace/satellite-dish-aligner`)
+
+React + Vite + TypeScript web app for satellite dish alignment.
+
+**Core features:**
+- Calculates azimuth, elevation, LNB skew from user GPS coordinates + satellite longitude
+- SVG dish diagram with beam simulation (green = satellite→dish, yellow = dish→LNB)
+- Interactive satellite map (Google satellite tiles, 9-tile mosaic) inside compass dial
+- Supports 20+ preset satellites + manual longitude input
+
+**Sensor features (new):**
+- `src/hooks/useSensors.ts` — device compass heading + tilt via `DeviceOrientationEvent`
+  - iOS 13+: triggers permission request via `DeviceOrientationEvent.requestPermission()`
+  - Android: auto-starts without permission
+  - Falls back gracefully on desktop (features simply don't appear)
+- `CompassDial`: shows orange device-heading needle pointing where the phone faces; updates alignment status (↺/↻ degrees to rotate, or ✓ aligned)
+- Map rotates with device heading (heading-up mode) — direction you face is always at top
+- `AngleLevel` component: elevation gauge (current vs target) + bubble level (left-right roll)
+- Live compass readout bar: heading in degrees + cardinal direction + delta to satellite target
+
+**Build configs:**
+- `vite.config.ts` — Replit dev (uses `PORT`, `BASE_PATH`)
+- `vite.config.local.ts` — local dev (port 5173, no env vars needed)
+- `capacitor.config.ts` — Android APK via GitHub Actions (`webDir: "dist"`)
+- `.github/workflows/android-apk.yml` — CI workflow, uses `build:local` script
+
+**Security:**
+- No default coordinates; input field starts empty
+- Placeholder shows fictional coords (34°N, 12°E)
+- README example uses fictional coordinates only
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

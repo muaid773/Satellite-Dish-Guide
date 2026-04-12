@@ -129,15 +129,15 @@ bash build-android.sh
 **Input:**
 | Field | Value |
 |-------|-------|
-| Location | 15.667°N, 43.957°E (Yemen) |
-| Satellite | Nilesat 7W (−7°) |
+| Location | 34.052°N, 12.345°E |
+| Satellite | Hotbird 13E (13°) |
 
 **Output:**
 | Parameter | Value | Meaning |
 |-----------|-------|---------|
-| Azimuth | 257.6° | Point dish West-Southwest |
-| Elevation | 29.8° | Tilt dish ~30° above horizon |
-| LNB Skew | −70.1° | Rotate LNB counterclockwise 70° |
+| Azimuth | 172.4° | Point dish South-Southeast |
+| Elevation | 41.2° | Tilt dish ~41° above horizon |
+| LNB Skew | 8.3° | Rotate LNB clockwise 8° |
 
 ---
 

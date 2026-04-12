@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSensors } from "../hooks/useSensors";
 
 interface Satellite {
   name: string;
@@ -111,10 +112,12 @@ function CompassDial({
   azimuth,
   satelliteName,
   coords,
+  deviceHeading,
 }: {
   azimuth: number;
   satelliteName: string;
   coords: { lat: number; lon: number } | null;
+  deviceHeading?: number | null;
 }) {
   const size = 340;
   const cx = size / 2;
@@ -219,16 +222,22 @@ function CompassDial({
 
         {tiles.length > 0 ? (
           <g clipPath="url(#mapClip)" style={{ opacity: 0.9 }}>
-            {tiles.map((tile, i) => (
-              <image
-                key={i}
-                href={tile.url}
-                x={tile.svgX}
-                y={tile.svgY}
-                width={256}
-                height={256}
-              />
-            ))}
+            {/* Map rotates with device heading so "facing direction" is always at top */}
+            <g transform={deviceHeading != null
+              ? `rotate(${-deviceHeading}, ${cx}, ${cy})`
+              : undefined}
+              style={{ transition: "transform 0.2s ease" }}>
+              {tiles.map((tile, i) => (
+                <image
+                  key={i}
+                  href={tile.url}
+                  x={tile.svgX}
+                  y={tile.svgY}
+                  width={256}
+                  height={256}
+                />
+              ))}
+            </g>
           </g>
         ) : (
           <>
@@ -320,8 +329,142 @@ function CompassDial({
           {azimuth}°
         </text>
 
+        {/* ── Device heading needle (orange) — shows where phone is pointing ── */}
+        {deviceHeading != null && (() => {
+          const devRad = ((deviceHeading - 90) * Math.PI) / 180;
+          const needleLen = innerR - 14;
+          const backLen = 22;
+          const nx = cx + needleLen * Math.cos(devRad);
+          const ny = cy + needleLen * Math.sin(devRad);
+          const bx = cx - backLen * Math.cos(devRad);
+          const by = cy - backLen * Math.sin(devRad);
+          const angleDiff = ((deviceHeading - azimuth + 540) % 360) - 180;
+          const aligned = Math.abs(angleDiff) <= 5;
+          const color = aligned ? "#22c55e" : "#f97316";
+          return (
+            <>
+              <line x1={bx} y1={by} x2={nx} y2={ny}
+                stroke={color} strokeWidth="3.5" strokeLinecap="round"
+                filter="url(#glow)" opacity="0.9" />
+              <polygon
+                points={`0,-7 5,5 -5,5`}
+                transform={`translate(${nx},${ny}) rotate(${deviceHeading})`}
+                fill={color} filter="url(#glow)" />
+              <text
+                x={cx} y={cy + mapR + 16}
+                textAnchor="middle" dominantBaseline="central"
+                fill={color} fontSize="10" fontWeight="700">
+                {aligned
+                  ? "✓ محاذى للقمر"
+                  : angleDiff > 0
+                    ? `↺ دوِّر يساراً ${Math.abs(Math.round(angleDiff))}°`
+                    : `↻ دوِّر يميناً ${Math.abs(Math.round(angleDiff))}°`}
+              </text>
+            </>
+          );
+        })()}
+
         <circle cx={cx} cy={cy} r={2} fill="#facc15" />
       </svg>
+    </div>
+  );
+}
+
+function AngleLevel({
+  tiltBeta,
+  tiltGamma,
+  targetElevation,
+}: {
+  tiltBeta: number | null;
+  tiltGamma: number | null;
+  targetElevation: number;
+}) {
+  // When holding phone upright and tilting it at elevation angle:
+  // beta ≈ 90 - elevation (phone near-vertical = low elevation, tilted back = high elevation)
+  const deviceEl = tiltBeta !== null
+    ? Math.max(0, Math.min(90, Math.round((90 - Math.abs(tiltBeta)) * 10) / 10))
+    : null;
+  const roll = tiltGamma !== null ? Math.round(tiltGamma * 10) / 10 : null;
+  const elevDiff = deviceEl !== null
+    ? Math.round((deviceEl - targetElevation) * 10) / 10
+    : null;
+  const elOk = elevDiff !== null && Math.abs(elevDiff) <= 2;
+  const rollOk = roll !== null && Math.abs(roll) <= 3;
+  const allOk = elOk && rollOk;
+
+  const barW = 220;
+  const bubbleX = roll !== null ? Math.max(8, Math.min(barW - 8, barW / 2 + (roll / 90) * (barW / 2))) : barW / 2;
+
+  return (
+    <div
+      className="rounded-xl border border-blue-900/40 p-4 flex flex-col gap-3"
+      style={{ background: "rgba(10,22,40,0.7)", backdropFilter: "blur(16px)" }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-blue-400 font-semibold tracking-wider uppercase">
+          ⚖️ ميزان الزاوية — Angle Level
+        </span>
+        {allOk && (
+          <span className="text-xs font-bold text-green-400 animate-pulse">✓ محاذاة تامة</span>
+        )}
+      </div>
+
+      {/* Elevation gauge */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-400 w-20 shrink-0">الارتفاع</span>
+        <div className="relative flex-1" style={{ height: 14 }}>
+          <div className="absolute inset-0 rounded-full" style={{ background: "#0f172a", border: "1px solid #1e3a5f" }} />
+          {/* Target line */}
+          <div className="absolute top-0 bottom-0 w-0.5 rounded"
+            style={{ left: `${(targetElevation / 90) * 100}%`, background: "#22c55e", opacity: 0.8 }} />
+          {/* Current position */}
+          {elPct !== null && (
+            <div className="absolute rounded" style={{
+              left: `${(deviceEl! / 90) * 100}%`, top: -2, bottom: -2, width: 6,
+              transform: "translateX(-3px)",
+              background: elOk ? "#22c55e" : "#f97316",
+              boxShadow: `0 0 10px ${elOk ? "#22c55e" : "#f97316"}`,
+            }} />
+          )}
+        </div>
+        <span className="text-xs font-mono w-16 text-right shrink-0"
+          style={{ color: elOk ? "#22c55e" : "#f97316" }}>
+          {deviceEl !== null ? `${deviceEl}°` : "—"}
+          {elevDiff !== null && !elOk && (
+            <span className="text-slate-500"> ({elevDiff > 0 ? "+" : ""}{elevDiff}°)</span>
+          )}
+        </span>
+      </div>
+
+      {/* Bubble level (roll / gamma) */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-400 w-20 shrink-0">الميل الجانبي</span>
+        <div className="relative flex-1" style={{ height: 14 }}>
+          <div className="absolute inset-0 rounded-full" style={{ background: "#0f172a", border: "1px solid #1e3a5f" }} />
+          {/* Center mark */}
+          <div className="absolute top-0 bottom-0 w-0.5"
+            style={{ left: "50%", background: "#22c55e", opacity: 0.6 }} />
+          {/* Bubble */}
+          {roll !== null && (
+            <div className="absolute rounded-full" style={{
+              left: `${(bubbleX / barW) * 100}%`, top: 1, bottom: 1, width: 12,
+              transform: "translateX(-6px)",
+              background: rollOk ? "#22c55e" : "#f97316",
+              boxShadow: `0 0 10px ${rollOk ? "#22c55e" : "#f97316"}`,
+              transition: "left 0.15s ease",
+            }} />
+          )}
+        </div>
+        <span className="text-xs font-mono w-16 text-right shrink-0"
+          style={{ color: rollOk ? "#22c55e" : "#f97316" }}>
+          {roll !== null ? `${roll > 0 ? "+" : ""}${roll}°` : "—"}
+        </span>
+      </div>
+
+      <div className="text-xs text-slate-500 text-center">
+        هدف الارتفاع: <span className="text-blue-400 font-mono">{targetElevation}°</span>
+        {" · "}وجّه الهاتف نحو القمر الصناعي لقياس الزاوية
+      </div>
     </div>
   );
 }
@@ -754,7 +897,7 @@ function DishDiagram({
 }
 
 export default function Home() {
-  const [coordInput, setCoordInput] = useState("15\xB040'01.5\"N 43\xB057'25.8\"E");
+  const [coordInput, setCoordInput] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedSat, setSelectedSat] = useState(SATELLITES[0]);
   const [satLonInput, setSatLonInput] = useState(String(SATELLITES[0].longitude));
@@ -762,8 +905,14 @@ export default function Home() {
   const [parseError, setParseError] = useState(false);
   const [lnbOffset, setLnbOffset] = useState(0);
   const [lnbOffsetInput, setLnbOffsetInput] = useState("0");
+  const sensors = useSensors();
 
   const applyCoords = useCallback((input: string) => {
+    if (!input.trim()) {
+      setCoords(null);
+      setParseError(false);
+      return;
+    }
     const parsed = parseCoordinates(input);
     if (parsed) {
       setCoords(parsed);
@@ -856,7 +1005,7 @@ export default function Home() {
               onChange={(e) => setCoordInput(e.target.value)}
               onBlur={() => applyCoords(coordInput)}
               onKeyDown={(e) => e.key === "Enter" && applyCoords(coordInput)}
-              placeholder={"مثال: 15°40'01.5\"N 43°57'25.8\"E"}
+              placeholder={"مثال: 34°03'07.2\"N 12°20'42.0\"E"}
               className="w-full rounded-lg px-3 py-2.5 text-sm font-mono bg-slate-800/80 border text-white placeholder-slate-500 outline-none transition-colors"
               style={{
                 borderColor: parseError ? "#ef4444" : "#1e3a5f",
@@ -866,7 +1015,7 @@ export default function Home() {
             />
             {parseError && (
               <p className="text-xs text-red-400 mt-1">
-                صيغة غير صحيحة — استخدم: 15°40'01.5"N 43°57'25.8"E
+                صيغة غير صحيحة — استخدم: 34°03'07.2"N 12°20'42.0"E
               </p>
             )}
             {!parseError && coords && (
@@ -947,22 +1096,61 @@ export default function Home() {
         </div>
 
         {coords && (
+          <>
           <div className="flex flex-col lg:flex-row gap-4 items-stretch">
             {/* ── Compass panel ── */}
             <div
               className="rounded-2xl border border-blue-900/40 p-4 flex flex-col items-center w-full lg:w-auto"
               style={{ background: "rgba(10, 22, 40, 0.7)", backdropFilter: "blur(16px)" }}
             >
-              <div className="text-xs text-blue-400 mb-3 font-semibold tracking-wider uppercase text-center">
+              <div className="text-xs text-blue-400 mb-3 font-semibold tracking-wider uppercase text-center flex items-center justify-center gap-2">
                 البوصلة والاتجاه — Compass
+                {sensors.isCompassAvailable && (
+                  <span className="inline-flex items-center gap-1 bg-green-900/30 border border-green-700/40 rounded-full px-2 py-0.5 text-green-400 text-xs font-normal">
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
+                    مباشر
+                  </span>
+                )}
               </div>
+
+              {/* iOS compass permission button */}
+              {sensors.needsPermission && !sensors.hasPermission && (
+                <button
+                  onClick={sensors.requestPermission}
+                  className="mb-3 w-full text-xs rounded-xl px-4 py-2.5 font-semibold"
+                  style={{
+                    background: "linear-gradient(135deg, #f97316, #ea580c)",
+                    color: "white",
+                    border: "1px solid #fb923c",
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  🧭 تفعيل البوصلة والمستشعرات
+                </button>
+              )}
+
               <div style={{ width: "100%", maxWidth: 400 }}>
                 <CompassDial
                   azimuth={angles.azimuth}
                   satelliteName={selectedSat.name}
                   coords={coords}
+                  deviceHeading={sensors.compassHeading}
                 />
               </div>
+
+              {/* Compass legend */}
+              {sensors.isCompassAvailable && (
+                <div className="flex gap-4 text-xs mt-2 justify-center" style={{ direction: "ltr" }}>
+                  <span className="flex items-center gap-1">
+                    <span style={{ width: 20, height: 3, background: "#facc15", borderRadius: 2, display: "inline-block" }} />
+                    <span className="text-slate-400">Satellite</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span style={{ width: 20, height: 3, background: "#f97316", borderRadius: 2, display: "inline-block" }} />
+                    <span className="text-slate-400">You →</span>
+                  </span>
+                </div>
+              )}
               <svg
                 width="100%"
                 viewBox="0 0 340 68"
@@ -1015,6 +1203,53 @@ export default function Home() {
               />
             </div>
           </div>
+
+          {/* ── Sensor live panel (angle level + compass heading readout) ── */}
+          {sensors.isTiltAvailable && (
+            <AngleLevel
+              tiltBeta={sensors.tiltBeta}
+              tiltGamma={sensors.tiltGamma}
+              targetElevation={adjustedElevation}
+            />
+          )}
+
+          {/* Compass heading readout row */}
+          {sensors.isCompassAvailable && (
+            <div
+              className="rounded-xl border border-blue-900/40 px-5 py-3 flex flex-wrap items-center gap-4"
+              style={{ background: "rgba(10,22,40,0.7)", backdropFilter: "blur(16px)", direction: "ltr" }}
+            >
+              <span className="text-xs text-blue-400 font-semibold tracking-wider" style={{ direction: "rtl" }}>
+                🧭 البوصلة المباشرة
+              </span>
+              <span className="font-mono text-white text-lg font-bold">
+                {sensors.compassHeading?.toFixed(1)}°
+              </span>
+              <span className="text-xs text-slate-500">
+                {(() => {
+                  const h = sensors.compassHeading ?? 0;
+                  if (h >= 337.5 || h < 22.5) return "شمال N";
+                  if (h < 67.5)  return "شمال-شرق NE";
+                  if (h < 112.5) return "شرق E";
+                  if (h < 157.5) return "جنوب-شرق SE";
+                  if (h < 202.5) return "جنوب S";
+                  if (h < 247.5) return "جنوب-غرب SW";
+                  if (h < 292.5) return "غرب W";
+                  return "شمال-غرب NW";
+                })()}
+              </span>
+              <span className="mr-auto text-xs text-slate-500" style={{ direction: "rtl" }}>
+                هدف القمر الصناعي: <span className="text-yellow-400 font-mono font-bold">{angles.azimuth}°</span>
+                &nbsp;·&nbsp;
+                الفرق: <span
+                  className="font-mono font-bold"
+                  style={{ color: Math.abs(((sensors.compassHeading ?? 0) - angles.azimuth + 540) % 360 - 180) <= 5 ? "#22c55e" : "#f97316" }}>
+                  {Math.round((((sensors.compassHeading ?? 0) - angles.azimuth + 540) % 360) - 180)}°
+                </span>
+              </span>
+            </div>
+          )}
+          </>
         )}
 
         {!coords && (
