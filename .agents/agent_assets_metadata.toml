@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "iIEHXyYWJivvPIHw5XdyO"
+uri = "file://README.md"
+type = "text"
+title = "README.md — Satellite Dish Alignment Tool"
